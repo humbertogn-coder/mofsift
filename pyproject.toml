@@ -71,6 +71,11 @@ addopts = "-ra --strict-markers"
 markers = [
   "external: needs a real optional tool (pormake, pyzeo, tblite, ...); skipped when it is absent",
 ]
+filterwarnings = [
+  # raised inside ASE and PORMAKE with recent NumPy; not ours to fix
+  "ignore::DeprecationWarning:ase.*",
+  "ignore::DeprecationWarning:pormake.*",
+]
 
 [tool.ruff]
 line-length = 110

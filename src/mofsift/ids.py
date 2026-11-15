@@ -30,11 +30,12 @@ def record_id(
     """ID of an assembled candidate.
 
     ``nodes`` and ``edges`` keep their order because it maps blocks to the node and edge
-    types of the topology. ``options`` holds anything else that changes the structure;
-    its key order does not matter.
+    types of the topology. ``edges`` is empty when the nodes are connected directly.
+    ``options`` holds anything else that changes the structure; its key order does not
+    matter.
     """
-    if not topology or not nodes or not edges:
-        raise ValueError("topology, nodes and edges are all required for a record ID")
+    if not topology or not nodes:
+        raise ValueError("a topology and at least one node are required for a record ID")
     payload = {
         "topology": topology,
         "nodes": list(nodes),
@@ -47,7 +48,8 @@ def record_id(
 
 def record_name(topology: str, nodes: Sequence[str], edges: Sequence[str]) -> str:
     """Human-readable label, e.g. ``pcu__N16__E14``. Not guaranteed unique; use the ID as key."""
-    return f"{topology}__{'+'.join(nodes)}__{'+'.join(edges)}"
+    label = f"{topology}__{'+'.join(nodes)}"
+    return f"{label}__{'+'.join(edges)}" if edges else label
 
 
 def file_record_id(content: bytes | str) -> str:

@@ -1,0 +1,13 @@
+# Check structures you already have. PORMAKE is not needed.
+# Put your CIF files in a folder named my_cifs next to this file, then:
+#   mofsift run examples/existing_cifs.yaml
+project: existing_cifs
+workdir: work_existing_cifs
+
+generate:
+  source: cifs
+  cif_dir: my_cifs
+
+qc:
+  # experimental structures often contain solvent or counter-ions; set this to false to accept them
+  require_single_framework: true

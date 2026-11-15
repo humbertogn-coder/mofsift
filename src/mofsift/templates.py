@@ -12,7 +12,8 @@ generate:
   source: pormake            # pormake = assemble structures | cifs = read existing CIF files
   topologies: [pcu]          # PORMAKE topology names
   nodes: [N16]               # PORMAKE node building blocks (N16 = Zn4O(CO2)6, the IRMOF node)
-  edges: [E14, E34]          # PORMAKE edge building blocks (E14 -> BDC, E34 -> BPDC)
+  edges: [E14, E34]          # PORMAKE edge building blocks (E14 -> BDC, E34 -> BPDC);
+                             # [] = connect the nodes directly (for example tbo with N10 and N409)
   max_atoms: 400             # skip larger structures; null = no limit
   # building_block_dir: my_blocks/   # extra blocks in PORMAKE .xyz format
   # cif_dir: my_cifs/                # required when source: cifs
@@ -24,7 +25,8 @@ qc:                          # built-in structural checks; distances in angstrom
   bond_factor: 1.20          # multiplier on covalent radii to detect bonds
   require_single_framework: true
   check_valence: true
-  check_composition: true
+  check_composition: true    # formula = sum of the building blocks (PORMAKE structures only)
+  max_node_rmsd: 0.30        # node-to-vertex misfit reported by PORMAKE; null = do not check
 
 describe:
   composition: true          # composition statistics (always available)

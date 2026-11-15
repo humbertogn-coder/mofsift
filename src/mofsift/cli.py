@@ -1,7 +1,9 @@
 """Command-line interface.
 
-This version provides ``init`` and ``doctor``. The stage commands (generate, qc, describe,
-score, export, run, merge, validate) are added as each stage is implemented.
+This version provides ``init``, ``doctor``, ``generate``, ``qc`` and ``run``. The other
+commands (describe, score, export, merge, validate) are added as each stage is implemented.
+
+Exit codes: 0 = done; 1 = a stage could not run; 2 = the config is invalid.
 """
 
 from __future__ import annotations
@@ -14,8 +16,12 @@ from pathlib import Path
 import typer
 
 from mofsift import __version__
-from mofsift.config import ConfigError, load_config
-from mofsift.plan import plan_stages
+from mofsift.config import Config, ConfigError, load_config
+from mofsift.generate import GenerateError
+from mofsift.generate import preview as preview_generate
+from mofsift.generate.pormake_adapter import PormakeMissingError
+from mofsift.plan import StagePlan, plan_stages
+from mofsift.runner import IMPLEMENTED, Run, RunnerError, StageOutcome, run_generate, run_qc
 from mofsift.templates import EXAMPLE_CONFIG
 from mofsift.tools import ToolStatus, default_tools
 
@@ -102,6 +108,9 @@ def doctor(
     statuses = [t.status() for t in tools]
     core_ok = all(s.available for s in statuses if s.tier == "core")
     plans = plan_stages(cfg, {s.name: s.available for s in statuses}) if cfg else []
+    notes: list[str] = []
+    if cfg is not None and config is not None:
+        plans, notes = _preflight_generate(cfg, config, plans)
     plan_ok = not any(p.action == "error" for p in plans)
 
     if as_json:
@@ -119,6 +128,7 @@ def doctor(
                 "project": cfg.project if cfg else None,
                 "config_hash": cfg.config_hash() if cfg else None,
                 "stages": [p.as_dict() for p in plans],
+                "notes": notes,
             },
         }
         typer.echo(json.dumps(payload, indent=2))
@@ -136,10 +146,12 @@ def doctor(
                 rows = [[p.stage, p.action, p.reason or ""] for p in plans]
                 for line in _table(rows, ["stage", "plan", "note"]):
                     typer.echo(line)
+                for note in notes:
+                    typer.echo(f"  note: {note}")
                 typer.echo("")
                 typer.echo(
-                    "Note: this version of mofsift implements 'init' and 'doctor'. "
-                    "The plan shows what the stages will do once they are implemented."
+                    f"Note: this version of mofsift runs {' and '.join(IMPLEMENTED)}. "
+                    "For the other stages the plan shows what they will do once they are implemented."
                 )
         if not core_ok:
             typer.echo("\nA core dependency is missing or broken; reinstall mofsift.", err=True)
@@ -148,6 +160,117 @@ def doctor(
         raise typer.Exit(code=2)
     if not core_ok or not plan_ok:
         raise typer.Exit(code=1)
+
+
+def _preflight_generate(
+    cfg: Config, config: Path, plans: list[StagePlan]
+) -> tuple[list[StagePlan], list[str]]:
+    """Check the names in the generate section and count the candidates, without building."""
+    out, notes = [], []
+    for plan in plans:
+        if plan.stage == "generate" and plan.action == "run":
+            try:
+                n, notes = preview_generate(cfg, config.resolve().parent)
+                what = "CIF file(s)" if cfg.generate.source == "cifs" else "candidate(s)"
+                plan = StagePlan("generate", "run", f"{n} {what}")
+            except (GenerateError, PormakeMissingError) as err:
+                plan = StagePlan("generate", "error", "; ".join(str(err).splitlines()))
+        out.append(plan)
+    return out, notes
+
+
+def _load_run(config: Path) -> Run:
+    try:
+        return Run.load(config)
+    except ConfigError as err:
+        typer.echo(str(err), err=True)
+        raise typer.Exit(code=2) from err
+
+
+def _progress(quiet: bool):
+    if quiet:
+        return None
+
+    def show(pos: int, total: int, name: str, status: str, reason: str | None) -> None:
+        typer.echo(f"  [{pos}/{total}] {name}: {status}" + (f" ({reason})" if reason else ""))
+
+    return show
+
+
+def _report(outcome: StageOutcome) -> None:
+    c = outcome.counts
+    line = (
+        f"{outcome.stage}: {len(outcome.table)} row(s): "
+        f"{c['ok']} ok, {c['skipped']} skipped, {c['failed']} failed"
+    )
+    if outcome.stage == "generate" and outcome.details.get("reused"):
+        line += f" ({outcome.details['reused']} reused from an earlier run)"
+    if outcome.stage == "qc":
+        line += f"; {outcome.details['passed']} passed the checks, {outcome.details['rejected']} did not"
+    typer.echo(line)
+    for note in outcome.notes:
+        typer.echo(f"  note: {note}")
+    typer.echo(f"  table: {outcome.path}")
+
+
+def _do_generate(run_: Run, force: bool, quiet: bool) -> StageOutcome:
+    cfg = run_.cfg
+    if cfg.generate.source == "pormake":
+        tool = next(t for t in default_tools(cfg.tools) if t.name == "pormake")
+        ok, detail = tool.check()
+        if not ok:
+            typer.echo(
+                f"generate cannot run: pormake is {detail or 'not available'}. Install it with: {tool.hint}\n"
+                "Alternatively set generate.source: cifs to start from existing structures.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+    try:
+        outcome = run_generate(run_, force=force, progress=_progress(quiet))
+    except GenerateError as err:
+        typer.echo(f"{run_.config_path}: the generate section cannot be carried out", err=True)
+        for line in str(err).splitlines():
+            typer.echo(f"  - {line}", err=True)
+        raise typer.Exit(code=2) from err
+    _report(outcome)
+    return outcome
+
+
+def _do_qc(run_: Run) -> StageOutcome:
+    try:
+        outcome = run_qc(run_)
+    except RunnerError as err:
+        typer.echo(f"qc cannot run: {err}", err=True)
+        raise typer.Exit(code=1) from err
+    _report(outcome)
+    return outcome
+
+
+_CONFIG_ARG = typer.Argument(..., help="Config file (see 'mofsift init').")
+_QUIET_OPT = typer.Option(False, "--quiet", "-q", help="Do not print one line per structure.")
+_FORCE_OPT = typer.Option(False, "--force", help="Build every structure again instead of reusing files.")
+
+
+@app.command()
+def generate(config: Path = _CONFIG_ARG, force: bool = _FORCE_OPT, quiet: bool = _QUIET_OPT) -> None:
+    """Create the candidate table and the structure files (PORMAKE, or existing CIFs)."""
+    _do_generate(_load_run(config), force, quiet)
+
+
+@app.command()
+def qc(config: Path = _CONFIG_ARG) -> None:
+    """Run the structural checks on every generated structure."""
+    _do_qc(_load_run(config))
+
+
+@app.command(name="run")
+def run_all(config: Path = _CONFIG_ARG, force: bool = _FORCE_OPT, quiet: bool = _QUIET_OPT) -> None:
+    """Run every stage that this version implements, in order."""
+    run_ = _load_run(config)
+    _do_generate(run_, force, quiet)
+    _do_qc(run_)
+    later = [p.stage for p in plan_stages(run_.cfg, {}) if p.stage.split(".")[0] not in IMPLEMENTED]
+    typer.echo(f"Not implemented in this version, so not run: {', '.join(later)}")
 
 
 def run() -> None:  # pragma: no cover

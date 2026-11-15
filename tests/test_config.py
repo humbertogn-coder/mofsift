@@ -42,11 +42,16 @@ def test_missing_required_keys(minimal_dict):
         parse_config({"project": "t"})
 
 
-@pytest.mark.parametrize("missing", ["topologies", "nodes", "edges"])
+@pytest.mark.parametrize("missing", ["topologies", "nodes"])
 def test_pormake_source_needs_blocks(minimal_dict, missing):
     minimal_dict["generate"][missing] = []
     with pytest.raises(ConfigError, match=f"needs non-empty: {missing}"):
         parse_config(minimal_dict)
+
+
+def test_edges_may_be_empty_for_directly_connected_nodes(minimal_dict):
+    minimal_dict["generate"]["edges"] = []
+    assert parse_config(minimal_dict).generate.edges == []
 
 
 def test_cif_source_needs_folder():
@@ -157,3 +162,9 @@ def test_resolve_path_is_relative_to_the_config_file(tmp_path):
     cfg_file = tmp_path / "runs" / "c.yaml"
     assert resolve_path(cfg_file, "work") == (tmp_path / "runs" / "work").resolve()
     assert resolve_path(cfg_file, tmp_path / "abs") == tmp_path / "abs"
+
+
+@pytest.mark.parametrize("name", ["pormake_small.yaml", "existing_cifs.yaml"])
+def test_shipped_examples_are_valid(name):
+    cfg = load_config(Path(__file__).resolve().parents[1] / "examples" / name)
+    assert cfg.project == name.removesuffix(".yaml")

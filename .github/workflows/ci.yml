@@ -52,6 +52,24 @@ jobs:
           mofsift init ci-example.yaml
           mofsift doctor --json
 
+  external:
+    name: tests with PORMAKE
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install with the generate extra
+        run: pip install -e ".[dev,generate]"
+      - name: Tests that build real structures
+        run: pytest -m external
+      - name: Example run
+        run: |
+          mofsift doctor examples/pormake_small.yaml
+          mofsift run examples/pormake_small.yaml
+
   build:
     runs-on: ubuntu-24.04
     steps:
@@ -67,5 +85,4 @@ jobs:
           /tmp/wheel-env/bin/pip install dist/*.whl
           cd /tmp && /tmp/wheel-env/bin/mofsift init wheel-example.yaml && /tmp/wheel-env/bin/mofsift doctor --json
 
-# Added with the stages that need them: a conda job that installs the optional tools and runs
-# the tests marked "external", and a docs build.
+# Added with the stages that need them: pyzeo and tblite in the external job, and a docs build.

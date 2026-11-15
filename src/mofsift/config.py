@@ -64,7 +64,10 @@ class GenerateConfig(_Model):
     )
     topologies: list[str] = Field(default_factory=list, description="PORMAKE topology names, e.g. pcu.")
     nodes: list[str] = Field(default_factory=list, description="PORMAKE node building blocks, e.g. N16.")
-    edges: list[str] = Field(default_factory=list, description="PORMAKE edge building blocks, e.g. E14.")
+    edges: list[str] = Field(
+        default_factory=list,
+        description="PORMAKE edge building blocks, e.g. E14. Leave empty to connect the nodes directly.",
+    )
     building_block_dir: Path | None = Field(
         None, description="Optional folder with extra building blocks in PORMAKE .xyz format."
     )
@@ -81,7 +84,7 @@ class GenerateConfig(_Model):
     @model_validator(mode="after")
     def _source_requirements(self) -> GenerateConfig:
         if self.source == "pormake":
-            missing = [k for k in ("topologies", "nodes", "edges") if not getattr(self, k)]
+            missing = [k for k in ("topologies", "nodes") if not getattr(self, k)]
             if missing:
                 raise ValueError(f"source 'pormake' needs non-empty: {', '.join(missing)}")
         elif self.cif_dir is None:
@@ -105,6 +108,12 @@ class QCConfig(_Model):
     check_composition: bool = Field(
         True, description="Formula must equal the sum of the building blocks (when they are known)."
     )
+    max_node_rmsd: float | None = Field(
+        0.30,
+        gt=0,
+        description="Largest accepted misfit (angstrom) between a node and its vertex in the topology, "
+        "as reported by PORMAKE. null = do not check.",
+    )
 
 
 class GeometryConfig(_Model):
@@ -126,7 +135,9 @@ class XtbConfig(_Model):
 
     enabled: AutoBool = "auto"
     method: Literal["GFN1-xTB", "GFN2-xTB"] = "GFN1-xTB"
-    periodic: bool = Field(True, description="Keep true for frameworks: a finite cluster is a different system.")
+    periodic: bool = Field(
+        True, description="Keep true for frameworks: a finite cluster is a different system."
+    )
     max_atoms: int = Field(300, gt=0, description="Structures above this size are skipped, not truncated.")
     on_missing: Literal["skip", "error"] = "skip"
 

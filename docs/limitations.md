@@ -4,12 +4,29 @@ Read this before using any number produced with mofsift.
 
 ## Structures
 
-- Every structure is hypothetical: assembled in silico from building blocks.
+- Every structure is hypothetical: assembled in silico from building blocks, or supplied by you.
 - Passing QC means the geometry passed geometric and compositional checks (no overlapping atoms,
-  one connected framework, sensible H and C coordination, expected formula). It does not establish
-  thermodynamic or mechanical stability, or that the framework can be synthesised.
-- Assembled geometries can contain compressed bonds at node–linker junctions. Pore descriptors and
-  xTB gaps computed on unrelaxed geometries change after relaxation.
+  one connected network, sensible H and C coordination, expected formula, node that fits its
+  vertex). It does not establish thermodynamic or mechanical stability, or that the framework can
+  be synthesised.
+- The checks do not test that the network is periodic in three dimensions: a molecule in a box is
+  one connected component and passes.
+- Assembled geometries are not relaxed and can contain compressed bonds at node-linker junctions
+  (counted in `qc_n_short_bonds`). Pore descriptors and xTB gaps computed on unrelaxed geometries
+  change after relaxation.
+- Bonds are detected from covalent radii. Unusual coordination (bridging hydrides, agostic
+  contacts, disordered sites in experimental CIFs) can fail the valence check without being wrong;
+  the thresholds and the individual checks can be switched in the `qc` section.
+
+## Generation
+
+- Building blocks are PORMAKE blocks (bundled, or your own in PORMAKE's `.xyz` format). Building
+  a linker from a SMILES string is not supported.
+- Every edge type of a topology receives the same edge block. Mixed-linker frameworks cannot be
+  declared yet.
+- A node is only placed on a vertex with the same number of connection points. The shape can
+  still be wrong (a square node on a tetrahedral vertex); that is what `node_rmsd` and
+  `qc.max_node_rmsd` are for.
 
 ## Electronic descriptors
 

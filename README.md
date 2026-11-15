@@ -13,9 +13,8 @@ config.yaml -> generate -> qc -> describe -> score -> filter -> export -> viewer
 Most open MOF workflows target gas adsorption. mofsift targets **electronic properties**
 (band gap and related proxies).
 
-> **Status: pre-alpha, private repository.** This version implements the package skeleton only:
-> config validation, `mofsift init` and `mofsift doctor`. The stages are not implemented yet
-> (see [Roadmap](#roadmap)).
+> **Status: pre-alpha, private repository.** This version runs the first two stages,
+> `generate` and `qc`. The stages after them are not implemented yet (see [Roadmap](#roadmap)).
 
 ## Read this first
 
@@ -49,13 +48,45 @@ Linux) and `environment-min.yml` (core only, any OS).
 
 ```bash
 mofsift init                  # writes a commented example config: mofsift.yaml
-mofsift doctor                # which tools are installed, with versions
-mofsift doctor mofsift.yaml   # also validates the config and shows the stage plan
-mofsift doctor --json         # the same, machine-readable
+mofsift doctor mofsift.yaml   # tools found, config valid, how many candidates, which stages run
+mofsift run mofsift.yaml      # generate + qc (the stages implemented so far)
 ```
 
-`doctor` exits with code 0 when everything needed is in place, 1 when a core dependency is
-broken or a stage that the config requires cannot run, and 2 when the config is invalid.
+The example config assembles two IRMOF-type frameworks with PORMAKE (Zn4O node on the `pcu` net
+with BDC and BPDC) and checks them; it takes a few seconds. The result is in `work/`:
+
+```
+work/
+  01_generate.csv        one row per candidate: id, blocks, formula, path of the CIF, status
+  02_qc.csv              the same rows plus the check results and qc_pass
+  *.meta.json            what produced each table (versions, config hash, counts)
+  structures/<id>.cif    one CIF per structure
+  structures/<id>.build.json   bond list and node misfit of structures assembled by PORMAKE
+```
+
+Stages can also be run one at a time (`mofsift generate`, then `mofsift qc`). Structures that
+already exist in the work folder are reused; `--force` builds them again.
+
+### Starting from your own CIFs
+
+No PORMAKE needed:
+
+```yaml
+project: my_structures
+generate:
+  source: cifs
+  cif_dir: my_cifs/          # searched recursively; relative to the config file
+```
+
+Each file gets an ID from its content, is copied unchanged to `work/structures/`, and goes
+through the same checks. What the checks cover, and every column, is described in
+[docs/generate-and-qc.md](docs/generate-and-qc.md).
+
+### Exit codes
+
+0 = done; 1 = a core dependency is broken or a stage cannot run (for example PORMAKE is needed
+and missing, or `qc` was called before `generate`); 2 = the config is invalid or names
+something that does not exist.
 
 A missing optional tool is not an error: the stage that needs it is skipped and the reason is
 recorded. Set `enabled: true` together with `on_missing: error` to make a tool mandatory.
@@ -74,8 +105,8 @@ recorded. Set `enabled: true` together with `on_missing: error` to make a tool m
 | # | Milestone | Status |
 |---|---|---|
 | 1 | Skeleton: install, `init`, `doctor`, config validation, CI | done locally; CI to be confirmed on the first push |
-| 2 | Generate (PORMAKE, or existing CIFs) + QC | next |
-| 3 | Describe: composition, pore geometry (pyzeo), xTB (tblite) | planned |
+| 2 | Generate (PORMAKE, or existing CIFs) + QC | done locally |
+| 3 | Describe: composition, pore geometry (pyzeo), xTB (tblite) | next |
 | 4 | Score: linker and precedent components, with a published validation benchmark | planned |
 | 5 | Export: table + viewer bundle + manifest; `merge`; `validate` | planned |
 | 6 | Viewer support for generic bundles | planned |
@@ -85,7 +116,8 @@ recorded. Set `enabled: true` together with `on_missing: error` to make a tool m
 
 ```bash
 pip install -e ".[dev]"
-pytest            # unit tests; tests that need an optional tool are marked "external"
+pytest            # tests that need an optional tool are marked "external" and skip without it
+pip install -e ".[dev,generate]" && pytest -m external   # the tests that build with PORMAKE
 ruff check .
 ruff format --check .
 python -m mofsift.config > src/mofsift/schemas/config.schema.json   # after changing the config model

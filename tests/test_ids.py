@@ -35,10 +35,16 @@ def test_option_key_order_does_not_matter():
     assert record_id("pcu", ["N16"], ["E14"], {}) == record_id("pcu", ["N16"], ["E14"])
 
 
-@pytest.mark.parametrize("args", [("", ["N16"], ["E14"]), ("pcu", [], ["E14"]), ("pcu", ["N16"], [])])
-def test_record_id_requires_all_parts(args):
+@pytest.mark.parametrize("args", [("", ["N16"], ["E14"]), ("pcu", [], ["E14"])])
+def test_record_id_requires_topology_and_nodes(args):
     with pytest.raises(ValueError):
         record_id(*args)
+
+
+def test_record_without_edges_is_allowed_and_distinct():
+    direct = record_id("tbo", ["N10", "N409"], [])
+    assert direct.startswith("ms-") and direct != record_id("tbo", ["N10", "N409"], ["E14"])
+    assert record_name("tbo", ["N10", "N409"], []) == "tbo__N10+N409"
 
 
 def test_record_name():

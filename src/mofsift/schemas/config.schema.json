@@ -98,7 +98,7 @@
           "title": "Cif Dir"
         },
         "edges": {
-          "description": "PORMAKE edge building blocks, e.g. E14.",
+          "description": "PORMAKE edge building blocks, e.g. E14. Leave empty to connect the nodes directly.",
           "items": {
             "type": "string"
           },
@@ -224,6 +224,20 @@
           "description": "H needs one neighbour; C needs two to four.",
           "title": "Check Valence",
           "type": "boolean"
+        },
+        "max_node_rmsd": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.3,
+          "description": "Largest accepted misfit (angstrom) between a node and its vertex in the topology, as reported by PORMAKE. null = do not check.",
+          "title": "Max Node Rmsd"
         },
         "min_distance": {
           "default": 0.7,

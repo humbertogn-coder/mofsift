@@ -109,6 +109,21 @@ class PythonTool(Tool):
         return True, None
 
 
+class PormakeTool(PythonTool):
+    """PORMAKE, imported through the adapter so that the check leaves no ``runtime.log`` behind."""
+
+    def check(self) -> tuple[bool, str | None]:
+        if not self.available():
+            return False, "not installed"
+        from mofsift.generate.pormake_adapter import load_pormake
+
+        try:
+            load_pormake()
+        except Exception as err:
+            return False, f"installed but import failed: {type(err).__name__}: {err}"
+        return True, None
+
+
 class BinaryTool(Tool):
     """An executable, looked up at a configured path first and then on PATH."""
 
@@ -171,7 +186,7 @@ def default_tools(cfg: ToolsConfig | None = None) -> list[Tool]:
         PythonTool("ase", "ase", "ase", "core", "structure I/O, qc", core),
         PythonTool("pymatgen", "pymatgen", "pymatgen", "core", "structure I/O", core),
         PythonTool("rdkit", "rdkit", "rdkit", "core", "score (linker)", core),
-        PythonTool(
+        PormakeTool(
             "pormake", "pormake", "pormake", "generate", "generate", "pip install 'mofsift[generate]'"
         ),
         PythonTool(

@@ -10,6 +10,9 @@ dist/
 htmlcov/
 # run outputs
 /work/
+work_*/
+examples/my_cifs/
+runtime.log
 /site_data/
 *.log
 # never commit restricted or unpublished material

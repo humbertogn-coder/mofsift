@@ -36,6 +36,12 @@ def _fake_tools(present: set[str]):
 CORE = {"numpy", "pandas", "ase", "pymatgen", "rdkit"}
 
 
+@pytest.fixture(autouse=True)
+def _no_real_pormake(monkeypatch):
+    """doctor counts the candidates through PORMAKE; these tests do not need the real one."""
+    monkeypatch.setattr(cli, "preview_generate", lambda cfg, config_dir: (2, []))
+
+
 def test_version():
     res = runner.invoke(cli.app, ["--version"])
     assert res.exit_code == 0 and res.stdout.strip() == f"mofsift {__version__}"
@@ -69,7 +75,8 @@ def test_doctor_with_config_all_tools(tmp_path, monkeypatch):
     res = runner.invoke(cli.app, ["doctor", str(cfg)])
     assert res.exit_code == 0, res.output
     assert "valid (project demo_irmof" in res.stdout
-    assert "implements 'init' and 'doctor'" in res.stdout  # no claim that stages exist
+    assert "2 candidate(s)" in res.stdout
+    assert "runs generate and qc" in res.stdout  # no claim that the later stages exist
 
 
 def test_doctor_reports_skips_as_success_and_blocked_generate_as_failure(tmp_path, monkeypatch):
@@ -115,9 +122,7 @@ def test_doctor_json_shape(monkeypatch):
     assert {"name", "tier", "available", "version", "hint"} <= set(payload["tools"][0])
 
 
-@pytest.mark.parametrize(
-    "command", ["generate", "qc", "describe", "score", "export", "run", "merge", "validate"]
-)
+@pytest.mark.parametrize("command", ["describe", "score", "export", "merge", "validate"])
 def test_unimplemented_stage_commands_are_not_exposed(command):
     res = runner.invoke(cli.app, [command])
     assert res.exit_code == 2 and "No such command" in res.output

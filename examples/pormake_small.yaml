@@ -1,0 +1,18 @@
+# Six candidates from PORMAKE's bundled building blocks, on three nets.
+# Run:  mofsift run examples/pormake_small.yaml
+project: pormake_small
+seed: 0
+workdir: work_pormake_small
+
+generate:
+  source: pormake
+  topologies: [pcu, nbo, dia]
+  nodes: [N16, N409]         # Zn4O(CO2)6 (6-connected) and the Cu2(CO2)4 paddlewheel (4-connected)
+  edges: [E14, E34]          # give BDC and BPDC linkers
+  max_atoms: 600
+
+# The square paddlewheel does not fit the tetrahedral vertex of dia: those two candidates are
+# built and then fail the checks (disconnected network, node misfit). They stay in the table
+# with the reasons.
+filter:
+  - "qc_pass == True"

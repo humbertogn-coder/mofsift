@@ -8,7 +8,9 @@ Every stage is a function ``run(table, cfg, workdir) -> table`` that
   ``<stage>_skip_reason`` for every row.
 
 Filtering is a separate, explicit step, so a user can always see what was rejected and
-why. Wrap a stage with :func:`stage` to have the contract checked on every call.
+why. Wrap a stage with :func:`stage` to have the contract checked on every call. The
+generate stage creates the table instead of extending one; it is checked with
+:func:`check_new_table`.
 """
 
 from __future__ import annotations
@@ -83,18 +85,39 @@ def check_contract(before: pd.DataFrame, after: pd.DataFrame, stage_name: str) -
         raise StageContractError(
             f"{stage_name}: existing columns were modified: {', '.join(map(str, changed))}"
         )
+    _check_status(after, stage_name)
+
+
+def _check_status(table: pd.DataFrame, stage_name: str) -> None:
+    s_col, r_col = status_columns(stage_name)
     for col in (s_col, r_col):
-        if col not in after.columns:
+        if col not in table.columns:
             raise StageContractError(f"{stage_name}: missing column {col}")
-    status = after[s_col]
+    status = table[s_col]
     if status.isna().any():
         raise StageContractError(f"{stage_name}: {int(status.isna().sum())} row(s) have no status")
     bad = sorted(set(status) - set(STATUSES))
     if bad:
         raise StageContractError(f"{stage_name}: unknown status value(s): {', '.join(map(str, bad))}")
-    no_reason = (status != STATUS_OK) & after[r_col].isna()
+    no_reason = (status != STATUS_OK) & table[r_col].isna()
     if no_reason.any():
         raise StageContractError(f"{stage_name}: {int(no_reason.sum())} skipped/failed row(s) have no reason")
+
+
+def check_new_table(table: pd.DataFrame, stage_name: str) -> None:
+    """Contract for a stage that creates the table (generate): unique IDs and a status for every row."""
+    if not isinstance(table, pd.DataFrame):
+        raise StageContractError(f"{stage_name}: a stage must return a DataFrame")
+    if table.index.isna().any() or not table.index.is_unique:
+        raise StageContractError(f"{stage_name}: record IDs must be present and unique")
+    _check_status(table, stage_name)
+
+
+def status_counts(table: pd.DataFrame, stage_name: str) -> dict[str, int]:
+    """Number of rows per status, always with the three keys."""
+    s_col, _ = status_columns(stage_name)
+    counts = table[s_col].value_counts()
+    return {s: int(counts.get(s, 0)) for s in STATUSES}
 
 
 StageFn = Callable[[pd.DataFrame, Any, Path], pd.DataFrame]
