@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+# run outputs
+/work/
+/site_data/
+*.log
+# never commit restricted or unpublished material
+POTCAR*
+WAVECAR*
+*.pkl
+.env

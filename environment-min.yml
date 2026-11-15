@@ -1,0 +1,8 @@
+# Core tier only; works on Windows, macOS and Linux.
+name: mofsift-min
+channels: [conda-forge]
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - -e .

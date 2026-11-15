@@ -1,0 +1,446 @@
+{
+  "$defs": {
+    "AggregateConfig": {
+      "additionalProperties": false,
+      "description": "Optional rank-based summary of the score components. It is not a probability.",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "weights": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Weights",
+          "type": "object"
+        }
+      },
+      "title": "AggregateConfig",
+      "type": "object"
+    },
+    "DescribeConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "composition": {
+          "default": true,
+          "description": "Composition statistics (always available).",
+          "title": "Composition",
+          "type": "boolean"
+        },
+        "geometry": {
+          "$ref": "#/$defs/GeometryConfig"
+        },
+        "xtb": {
+          "$ref": "#/$defs/XtbConfig"
+        }
+      },
+      "title": "DescribeConfig",
+      "type": "object"
+    },
+    "ExportConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "include_cifs": {
+          "default": true,
+          "title": "Include Cifs",
+          "type": "boolean"
+        },
+        "table_format": {
+          "default": "csv",
+          "enum": [
+            "csv",
+            "parquet"
+          ],
+          "title": "Table Format",
+          "type": "string"
+        },
+        "viewer_bundle": {
+          "default": true,
+          "title": "Viewer Bundle",
+          "type": "boolean"
+        }
+      },
+      "title": "ExportConfig",
+      "type": "object"
+    },
+    "GenerateConfig": {
+      "additionalProperties": false,
+      "description": "Where candidate structures come from.",
+      "properties": {
+        "building_block_dir": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional folder with extra building blocks in PORMAKE .xyz format.",
+          "title": "Building Block Dir"
+        },
+        "cif_dir": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Folder with CIF files (source: cifs).",
+          "title": "Cif Dir"
+        },
+        "edges": {
+          "description": "PORMAKE edge building blocks, e.g. E14.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Edges",
+          "type": "array"
+        },
+        "max_atoms": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Skip structures larger than this. null = no limit.",
+          "title": "Max Atoms"
+        },
+        "nodes": {
+          "description": "PORMAKE node building blocks, e.g. N16.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "source": {
+          "default": "pormake",
+          "description": "'pormake' assembles structures; 'cifs' reads existing CIF files.",
+          "enum": [
+            "pormake",
+            "cifs"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "topologies": {
+          "description": "PORMAKE topology names, e.g. pcu.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Topologies",
+          "type": "array"
+        }
+      },
+      "title": "GenerateConfig",
+      "type": "object"
+    },
+    "GeometryConfig": {
+      "additionalProperties": false,
+      "description": "Pore geometry from Zeo++.",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "const": "auto",
+              "type": "string"
+            }
+          ],
+          "default": "auto",
+          "title": "Enabled"
+        },
+        "high_accuracy": {
+          "default": true,
+          "title": "High Accuracy",
+          "type": "boolean"
+        },
+        "on_missing": {
+          "default": "skip",
+          "description": "What to do when enabled is true and the tool is not installed.",
+          "enum": [
+            "skip",
+            "error"
+          ],
+          "title": "On Missing",
+          "type": "string"
+        },
+        "probe_radius": {
+          "default": 1.86,
+          "description": "Probe radius in angstrom for accessible properties.",
+          "exclusiveMinimum": 0,
+          "title": "Probe Radius",
+          "type": "number"
+        },
+        "tool": {
+          "default": "pyzeo",
+          "description": "'pyzeo' = Python bindings (pip); 'zeopp' = the 'network' binary.",
+          "enum": [
+            "pyzeo",
+            "zeopp"
+          ],
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "title": "GeometryConfig",
+      "type": "object"
+    },
+    "QCConfig": {
+      "additionalProperties": false,
+      "description": "Thresholds of the built-in structural checks (distances in angstrom).",
+      "properties": {
+        "bond_factor": {
+          "default": 1.2,
+          "description": "Multiplier on covalent radii used to detect bonds.",
+          "exclusiveMinimum": 0,
+          "title": "Bond Factor",
+          "type": "number"
+        },
+        "check_composition": {
+          "default": true,
+          "description": "Formula must equal the sum of the building blocks (when they are known).",
+          "title": "Check Composition",
+          "type": "boolean"
+        },
+        "check_valence": {
+          "default": true,
+          "description": "H needs one neighbour; C needs two to four.",
+          "title": "Check Valence",
+          "type": "boolean"
+        },
+        "min_distance": {
+          "default": 0.7,
+          "description": "No pair of atoms may be closer than this.",
+          "exclusiveMinimum": 0,
+          "title": "Min Distance",
+          "type": "number"
+        },
+        "min_distance_heavy": {
+          "default": 1.0,
+          "description": "No heavy-heavy or H-H pair may be closer than this.",
+          "exclusiveMinimum": 0,
+          "title": "Min Distance Heavy",
+          "type": "number"
+        },
+        "nonbonded_factor": {
+          "default": 0.8,
+          "description": "Non-bonded contacts must exceed this fraction of the covalent-radius sum.",
+          "exclusiveMinimum": 0,
+          "title": "Nonbonded Factor",
+          "type": "number"
+        },
+        "require_single_framework": {
+          "default": true,
+          "description": "Reject isolated atoms and extra fragments.",
+          "title": "Require Single Framework",
+          "type": "boolean"
+        }
+      },
+      "title": "QCConfig",
+      "type": "object"
+    },
+    "ScoreConfig": {
+      "additionalProperties": false,
+      "description": "Synthetic-accessibility components, reported separately.",
+      "properties": {
+        "aggregate": {
+          "$ref": "#/$defs/AggregateConfig"
+        },
+        "components": {
+          "items": {
+            "enum": [
+              "linker_sa",
+              "linker_sc",
+              "linker_size",
+              "linker_rotatable_bonds",
+              "precedent_node",
+              "precedent_topology",
+              "precedent_pair"
+            ],
+            "type": "string"
+          },
+          "title": "Components",
+          "type": "array"
+        },
+        "strain": {
+          "$ref": "#/$defs/StrainConfig"
+        }
+      },
+      "title": "ScoreConfig",
+      "type": "object"
+    },
+    "StrainConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        }
+      },
+      "title": "StrainConfig",
+      "type": "object"
+    },
+    "ToolsConfig": {
+      "additionalProperties": false,
+      "description": "Optional explicit paths to external binaries (otherwise they are looked up on PATH).",
+      "properties": {
+        "xtb": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path to the xtb binary.",
+          "title": "Xtb"
+        },
+        "zeopp": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path to the Zeo++ 'network' binary.",
+          "title": "Zeopp"
+        }
+      },
+      "title": "ToolsConfig",
+      "type": "object"
+    },
+    "XtbConfig": {
+      "additionalProperties": false,
+      "description": "Semi-empirical electronic proxies (band gap, band edges) from tblite.",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "const": "auto",
+              "type": "string"
+            }
+          ],
+          "default": "auto",
+          "title": "Enabled"
+        },
+        "max_atoms": {
+          "default": 300,
+          "description": "Structures above this size are skipped, not truncated.",
+          "exclusiveMinimum": 0,
+          "title": "Max Atoms",
+          "type": "integer"
+        },
+        "method": {
+          "default": "GFN1-xTB",
+          "enum": [
+            "GFN1-xTB",
+            "GFN2-xTB"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "on_missing": {
+          "default": "skip",
+          "enum": [
+            "skip",
+            "error"
+          ],
+          "title": "On Missing",
+          "type": "string"
+        },
+        "periodic": {
+          "default": true,
+          "description": "Keep true for frameworks: a finite cluster is a different system.",
+          "title": "Periodic",
+          "type": "boolean"
+        }
+      },
+      "title": "XtbConfig",
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/humbertogn-coder/mofsift/schemas/config.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Top-level run configuration.",
+  "properties": {
+    "describe": {
+      "$ref": "#/$defs/DescribeConfig"
+    },
+    "export": {
+      "$ref": "#/$defs/ExportConfig"
+    },
+    "filter": {
+      "description": "Row filters applied as an explicit step, e.g. 'qc_pass == True'.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Filter",
+      "type": "array"
+    },
+    "generate": {
+      "$ref": "#/$defs/GenerateConfig"
+    },
+    "project": {
+      "description": "Short name of the run; used in file names and the manifest.",
+      "title": "Project",
+      "type": "string"
+    },
+    "qc": {
+      "$ref": "#/$defs/QCConfig"
+    },
+    "score": {
+      "$ref": "#/$defs/ScoreConfig"
+    },
+    "seed": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "tools": {
+      "$ref": "#/$defs/ToolsConfig"
+    },
+    "workdir": {
+      "default": "work",
+      "description": "Folder for intermediate tables and structures.",
+      "format": "path",
+      "title": "Workdir",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project",
+    "generate"
+  ],
+  "title": "Config",
+  "type": "object"
+}

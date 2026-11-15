@@ -1,0 +1,8 @@
+# Everything (Linux): core + PORMAKE + pyzeo + tblite + scikit-learn, and the development tools.
+name: mofsift
+channels: [conda-forge]
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - -e ".[all,dev]"

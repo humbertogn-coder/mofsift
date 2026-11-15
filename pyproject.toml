@@ -1,0 +1,82 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mofsift"
+dynamic = ["version"]
+description = "Config-driven screening of hypothetical MOFs for electronic properties: generate, check, describe, score, export."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [
+  { name = "C. H. Guerrero Navarro" },
+  { name = "Maryam Ghotbi" },
+  { name = "Perla B. Balbuena" },
+]
+keywords = ["metal-organic frameworks", "MOF", "high-throughput screening", "band gap", "materials informatics"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Chemistry",
+]
+# Core tier: enough to load a config, read structures, run the built-in QC and the
+# linker scores. Everything that needs a compiled scientific code is an extra.
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.1",
+  "pyyaml>=6.0",
+  "pydantic>=2.6",
+  "jsonschema>=4.20",
+  "typer>=0.12",
+  "ase>=3.23",
+  "pymatgen>=2024.5.1",
+  "rdkit>=2023.9.1",
+]
+
+[project.optional-dependencies]
+generate = ["pormake>=0.2.3"]
+# pyzeo and tblite publish wheels for Linux and macOS only (checked 2026-11). On Windows the
+# extras install nothing; use WSL or run those stages on a cluster and `merge` the results.
+zeo = ["pyzeo>=0.2.0; sys_platform != 'win32'"]
+xtb = ["tblite>=0.4.0; sys_platform != 'win32'"]
+ml = ["scikit-learn>=1.4", "shap>=0.45"]
+all = ["mofsift[generate,zeo,xtb,ml]"]
+dev = ["pytest>=8", "ruff>=0.6", "build>=1.2"]
+
+[project.scripts]
+mofsift = "mofsift.cli:app"
+
+[project.urls]
+Repository = "https://github.com/humbertogn-coder/mofsift"
+
+[tool.hatch.version]
+path = "src/mofsift/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mofsift"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "docs", "examples", "README.md", "LICENSE", "CHANGELOG.md", "CITATION.cff", "environment*.yml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "external: needs a real optional tool (pormake, pyzeo, tblite, ...); skipped when it is absent",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["B008"]  # typer uses function calls in argument defaults

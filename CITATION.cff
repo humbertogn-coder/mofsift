@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below. A paper reference will be added when one exists."
+title: "mofsift: config-driven screening of hypothetical MOFs for electronic properties"
+type: software
+authors:
+  - family-names: Guerrero Navarro
+    given-names: C. H.
+    affiliation: Texas A&M University
+  - family-names: Ghotbi
+    given-names: Maryam
+    affiliation: Texas A&M University
+  - family-names: Balbuena
+    given-names: Perla B.
+    affiliation: Texas A&M University
+license: MIT
+version: 0.1.0.dev0
