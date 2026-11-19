@@ -106,7 +106,7 @@ def run_generate(
         path=path,
         counts=status_counts(result.table, generate.STAGE),
         notes=result.notes,
-        details={"source": run.cfg.generate.source, "reused": result.reused},
+        details={"source": run.cfg.generate.source, "reused": result.reused, "linkers": result.linkers},
     )
     _write_meta(run, outcome, {**result.tools, "ase": _version("ase")})
     return outcome

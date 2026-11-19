@@ -105,6 +105,7 @@ class PormakeAdapter:
         self.block_dir = Path(building_block_dir) if building_block_dir is not None else None
         if self.block_dir is not None and not self.block_dir.is_dir():
             raise UnknownNameError(f"generate.building_block_dir: folder not found: {self.block_dir}")
+        self._registered: dict[str, tuple[Path, str]] = {}
         self._topologies: dict[str, Any] = {}
         self._blocks: dict[str, Any] = {}
         self._block_hash: dict[str, str | None] = {}
@@ -119,6 +120,11 @@ class PormakeAdapter:
             names |= {p.stem for p in self.block_dir.glob("*.xyz")}
         return sorted(names)
 
+    def register_block(self, name: str, path: Path, content_hash: str) -> None:
+        """Make a generated building block (for example a linker built from SMILES) available by name."""
+        self._registered[name] = (Path(path), content_hash)
+        self._blocks.pop(name, None)
+
     def _topology(self, name: str) -> Any:
         if name not in self._topologies:
             if name not in self.db.topo_list:
@@ -130,7 +136,11 @@ class PormakeAdapter:
         if name not in self._blocks:
             custom = self.block_dir / f"{name}.xyz" if self.block_dir is not None else None
             try:
-                if custom is not None and custom.is_file():
+                if name in self._registered:
+                    path, digest = self._registered[name]
+                    self._blocks[name] = self.pm.BuildingBlock(str(path))
+                    self._block_hash[name] = digest
+                elif custom is not None and custom.is_file():
                     text = custom.read_text(encoding="utf-8", errors="replace")
                     lines = [ln.rstrip() for ln in text.replace("\r\n", "\n").split("\n")]
                     digest = hashlib.sha256("\n".join(lines).strip("\n").encode("utf-8")).hexdigest()

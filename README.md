@@ -31,18 +31,26 @@ More in [docs/limitations.md](docs/limitations.md).
 
 ## Install
 
-Python 3.11–3.13.
+Python 3.11–3.13. On Linux, macOS or WSL, install everything:
 
 ```bash
-pip install -e .                 # core: config, structure I/O, built-in QC, linker scores
+pip install -e ".[all]"          # PORMAKE, pyzeo (Zeo++), tblite (xTB), scikit-learn
+```
+
+Pore geometry (Zeo++) and the xTB electronic proxies are the descriptors this package exists
+for. They are optional only in the sense that a run does not crash without them: the stage is
+skipped and the table says why. Smaller installs:
+
+```bash
+pip install -e .                 # core: config, structure I/O, QC, SMILES linkers, linker scores
 pip install -e ".[generate]"     # + PORMAKE (structure assembly)
-pip install -e ".[zeo,xtb]"      # + pyzeo (Zeo++) and tblite (xTB); Linux and macOS only
+pip install -e ".[zeo,xtb]"      # + pyzeo and tblite
 pip install -e ".[all,dev]"      # everything, plus pytest and ruff
 ```
 
-`pyzeo` and `tblite` have no Windows wheels. On Windows the core tier works natively; run the
-geometry and xTB stages under WSL or on a cluster. Conda users: `environment.yml` (everything,
-Linux) and `environment-min.yml` (core only, any OS).
+`pyzeo` and `tblite` have no Windows wheels. On Windows the core tier and PORMAKE work natively;
+run the geometry and xTB stages under WSL or on a cluster. Conda users: `environment.yml`
+(everything, Linux) and `environment-min.yml` (core only, any OS).
 
 ## Quickstart (what works today)
 
@@ -62,10 +70,31 @@ work/
   *.meta.json            what produced each table (versions, config hash, counts)
   structures/<id>.cif    one CIF per structure
   structures/<id>.build.json   bond list and node misfit of structures assembled by PORMAKE
+  blocks/<name>.xyz      building blocks made from SMILES linkers, in PORMAKE's format
 ```
 
 Stages can also be run one at a time (`mofsift generate`, then `mofsift qc`). Structures that
 already exist in the work folder are reused; `--force` builds them again.
+
+### Linkers from SMILES
+
+Linkers can be PORMAKE's bundled blocks, SMILES, or both in the same run:
+
+```yaml
+generate:
+  source: pormake
+  topologies: [pcu]
+  nodes: [N16]
+  edges: [E14]
+  linkers:
+    smiles:
+      bdc_nh2: "Nc1cc(C(=O)O)ccc1C(=O)O"    # carboxylic acids are found automatically
+      core: "[*]c1ccc([*])cc1"              # or mark the connection points with [*]
+    smiles_file: linkers.smi                # one "SMILES name" per line
+```
+
+A linker with two connection points is used as an edge; with three or more, as an organic node.
+Details and caveats: [docs/generate-and-qc.md](docs/generate-and-qc.md#linkers-from-smiles).
 
 ### Starting from your own CIFs
 
@@ -105,7 +134,7 @@ recorded. Set `enabled: true` together with `on_missing: error` to make a tool m
 | # | Milestone | Status |
 |---|---|---|
 | 1 | Skeleton: install, `init`, `doctor`, config validation, CI | done locally; CI to be confirmed on the first push |
-| 2 | Generate (PORMAKE, or existing CIFs) + QC | done locally |
+| 2 | Generate (PORMAKE blocks, linkers from SMILES, or existing CIFs) + QC | done locally |
 | 3 | Describe: composition, pore geometry (pyzeo), xTB (tblite) | next |
 | 4 | Score: linker and precedent components, with a published validation benchmark | planned |
 | 5 | Export: table + viewer bundle + manifest; `merge`; `validate` | planned |

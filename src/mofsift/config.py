@@ -17,7 +17,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
@@ -56,6 +56,32 @@ def _no_duplicates(values: list[str], what: str) -> list[str]:
     return values
 
 
+class LinkersConfig(_Model):
+    """Organic linkers given as SMILES and converted to PORMAKE building blocks."""
+
+    smiles_file: Path | None = Field(
+        None, description="Text file with one 'SMILES name' pair per line; lines starting with # are ignored."
+    )
+    smiles: dict[str, str] = Field(
+        default_factory=dict, description="Linkers written inline, as name: SMILES."
+    )
+    connection_distance: float = Field(
+        0.75,
+        gt=0,
+        le=1.5,
+        description="Distance (angstrom) from the anchor atom to the connection point; half a C-C bond.",
+    )
+    conformers: int = Field(
+        10, ge=1, le=200, description="Conformers embedded per linker; the lowest in energy is kept."
+    )
+
+    @model_validator(mode="after")
+    def _something_to_do(self) -> LinkersConfig:
+        if self.smiles_file is None and not self.smiles:
+            raise ValueError("give smiles_file, smiles, or both")
+        return self
+
+
 class GenerateConfig(_Model):
     """Where candidate structures come from."""
 
@@ -67,6 +93,11 @@ class GenerateConfig(_Model):
     edges: list[str] = Field(
         default_factory=list,
         description="PORMAKE edge building blocks, e.g. E14. Leave empty to connect the nodes directly.",
+    )
+    linkers: LinkersConfig | None = Field(
+        None,
+        description="Linkers given as SMILES. With two connection points they are used as edges, "
+        "with three or more as organic nodes, next to the blocks listed in nodes and edges.",
     )
     building_block_dir: Path | None = Field(
         None, description="Optional folder with extra building blocks in PORMAKE .xyz format."
@@ -258,9 +289,9 @@ def _all_field_names(model: type[BaseModel], seen: set[type] | None = None) -> s
     seen.add(model)
     names = set(model.model_fields)
     for f in model.model_fields.values():
-        ann = f.annotation
-        if isinstance(ann, type) and issubclass(ann, BaseModel):
-            names |= _all_field_names(ann, seen)
+        for ann in (f.annotation, *get_args(f.annotation)):  # also models inside "Model | None"
+            if isinstance(ann, type) and issubclass(ann, BaseModel):
+                names |= _all_field_names(ann, seen)
     return names
 
 

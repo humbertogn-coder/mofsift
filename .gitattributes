@@ -1,0 +1,3 @@
+# Keep the same line endings on every system: tables, CIFs and schemas are compared byte by byte.
+* text=auto eol=lf
+*.png binary

@@ -16,7 +16,11 @@ All notable changes are listed here. The format follows Keep a Changelog; versio
 - CLI: `mofsift generate`, `mofsift qc`, `mofsift run`. `mofsift doctor CONFIG` now checks the
   topology and block names and reports the number of candidates before anything is built.
 - User building blocks (`generate.building_block_dir`); their content is part of the record ID.
-- Docs: `docs/generate-and-qc.md`; two example configs under `examples/`.
+- Linkers from SMILES (`generate.linkers`, inline or from a `.smi` file), next to PORMAKE's
+  bundled blocks: carboxylic acids are found automatically, `[*]` marks explicit connection
+  points; two connection points give an edge, three or more an organic node. The block is
+  embedded and optimised with RDKit and written in PORMAKE's format. New column `linker_smiles`.
+- Docs: `docs/generate-and-qc.md`; three example configs under `examples/`.
 - CI: a job that installs PORMAKE and runs the tests marked `external`.
 
 ### Changed

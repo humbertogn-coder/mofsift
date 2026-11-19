@@ -82,6 +82,13 @@ class FakeAdapter:
             "M": BlockInfo("M", 2, {"H": 2}),
         }
         self.built: list[str] = []
+        self.registered: dict = {}
+
+    def known_blocks(self):
+        return sorted(self.blocks)
+
+    def register_block(self, name, path, content_hash):
+        self.registered[name] = (path, content_hash)
 
     def topology_info(self, name):
         from mofsift.generate.pormake_adapter import UnknownNameError

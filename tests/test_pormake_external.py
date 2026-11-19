@@ -102,6 +102,61 @@ def test_user_building_blocks_take_precedence_and_change_the_id(tmp_path):
     assert changed.index[0] != table.index[0] and changed["formula"].iloc[0] == "C42H24O13Zn4"
 
 
+def test_linkers_from_smiles_are_built_like_the_bundled_blocks(tmp_path):
+    cfg = _cfg(
+        edges=["E14"],
+        linkers={
+            "smiles": {
+                "bdc": "OC(=O)c1ccc(cc1)C(=O)O",
+                "core": "[*]c1ccc([*])cc1",
+                "bdc_nh2": "Nc1cc(C(=O)O)ccc1C(=O)O",
+            }
+        },
+    )
+    checked = qc.run(generate.run(cfg, tmp_path).table, cfg, tmp_path)
+    assert checked.index.is_unique and len(checked) == 4
+    table = checked.set_index("name")
+    assert list(table.index) == ["pcu__N16__E14", "pcu__N16__bdc", "pcu__N16__core", "pcu__N16__bdc_nh2"]
+    assert (table["generate_status"] == "ok").all() and table["qc_pass"].all()
+    # terephthalic acid from SMILES gives the framework that PORMAKE's own block E14 gives (MOF-5)
+    for name in ("pcu__N16__bdc", "pcu__N16__core"):
+        assert table.loc[name, "formula"] == table.loc["pcu__N16__E14", "formula"] == "C24H12O13Zn4"
+        assert table.loc[name, "qc_n_nonbonded_contacts"] == 0 and table.loc[name, "qc_composition_ok"]
+        assert table.loc[name, "node_rmsd"] < 0.01
+        # a real benzene ring is smaller than PORMAKE's idealised one, so the cell is a little smaller
+        assert 12.8 < table.loc[name, "cell_a"] < table.loc["pcu__N16__E14", "cell_a"]
+    assert table.loc["pcu__N16__bdc_nh2", "formula"] == "C24H15N3O13Zn4"
+    # the block PORMAKE read is the one mofsift wrote
+    assert (tmp_path / "blocks" / "bdc.xyz").read_text(encoding="utf-8").startswith("12\n")
+    # same result on a second, independent run
+    again = generate.run(cfg, tmp_path / "again").table
+    for record_id in again.index:
+        name = f"{record_id}.cif"
+        assert sha256_file(tmp_path / "structures" / name) == sha256_file(
+            tmp_path / "again" / "structures" / name
+        )
+
+
+def test_a_tritopic_linker_from_smiles_is_used_as_a_node(tmp_path):
+    # trimesic acid on the 3-connected vertices of tbo, Cu paddlewheel on the 4-connected ones: HKUST-1
+    cfg = _cfg(
+        topologies=["tbo"],
+        nodes=["N409"],
+        edges=[],
+        linkers={"smiles": {"btc": "OC(=O)c1cc(cc(c1)C(=O)O)C(=O)O"}},
+    )
+    row = qc.run(generate.run(cfg, tmp_path).table, cfg, tmp_path).iloc[0]
+    assert row["name"] == "tbo__btc+N409" and row["formula"] == "C288H96Cu48O192"
+    assert row["qc_pass"] and row["qc_n_components"] == 1 and row["node_rmsd"] < 0.3
+    assert row["linker_smiles"] == "O=C(O)c1cc(C(=O)O)cc(C(=O)O)c1"
+
+
+def test_linker_names_cannot_shadow_pormake_blocks(tmp_path):
+    cfg = _cfg(linkers={"smiles": {"E34": "OC(=O)c1ccc(cc1)C(=O)O"}})
+    with pytest.raises(GenerateError, match="already used by a building block: E34"):
+        generate.run(cfg, tmp_path)
+
+
 def test_command_line_run_is_quiet_and_leaves_no_log_file(tmp_path):
     # in a fresh process, so that PORMAKE is really imported for the first time
     env = {**os.environ, "PYTHONWARNINGS": "default"}

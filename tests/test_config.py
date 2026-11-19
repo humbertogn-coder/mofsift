@@ -164,7 +164,25 @@ def test_resolve_path_is_relative_to_the_config_file(tmp_path):
     assert resolve_path(cfg_file, tmp_path / "abs") == tmp_path / "abs"
 
 
-@pytest.mark.parametrize("name", ["pormake_small.yaml", "existing_cifs.yaml"])
+@pytest.mark.parametrize("name", ["pormake_small.yaml", "existing_cifs.yaml", "linkers_from_smiles.yaml"])
 def test_shipped_examples_are_valid(name):
     cfg = load_config(Path(__file__).resolve().parents[1] / "examples" / name)
     assert cfg.project == name.removesuffix(".yaml")
+
+
+def test_linkers_section(minimal_dict):
+    minimal_dict["generate"]["linkers"] = {"smiles": {"bdc": "OC(=O)c1ccc(cc1)C(=O)O"}}
+    linkers = parse_config(minimal_dict).generate.linkers
+    assert linkers.connection_distance == 0.75 and linkers.conformers == 10 and linkers.smiles_file is None
+    minimal_dict["generate"]["linkers"] = {"smiles_file": "linkers.smi", "conformers": 3}
+    assert parse_config(minimal_dict).generate.linkers.smiles_file == Path("linkers.smi")
+    for bad, message in [
+        ({}, "give smiles_file, smiles, or both"),
+        ({"smiles": {"a": "CC"}, "conformers": 0}, "generate.linkers.conformers"),
+        ({"smiles": {"a": "CC"}, "connection_distance": 2.0}, "generate.linkers.connection_distance"),
+        ({"smile": {"a": "CC"}}, "did you mean 'smiles'"),
+    ]:
+        minimal_dict["generate"]["linkers"] = bad
+        with pytest.raises(ConfigError, match=message):
+            parse_config(minimal_dict)
+    assert parse_config({**minimal_dict, "generate": {**minimal_dict["generate"], "linkers": None}})

@@ -23,7 +23,8 @@ import pandas as pd
 
 from mofsift.chem import hill_formula
 from mofsift.config import Config
-from mofsift.generate.enumerate import Combination, enumerate_combinations
+from mofsift.generate.enumerate import BlockInfo, Combination, enumerate_combinations
+from mofsift.generate.linkers import LinkerBlock, LinkerError, build_linkers, collect_smiles
 from mofsift.ids import file_record_id
 from mofsift.io.structures import StructureError, read_structure
 from mofsift.io.tables import ID_COLUMN, normalise, register_columns
@@ -31,6 +32,7 @@ from mofsift.stages import STATUS_FAILED, STATUS_OK, STATUS_SKIPPED, check_new_t
 
 STAGE = "generate"
 STRUCTURE_DIR = "structures"
+BLOCK_DIR = "blocks"
 
 COLUMNS = {
     "name": "string",
@@ -42,6 +44,7 @@ COLUMNS = {
     "n_atoms": "Int64",
     "formula": "string",
     "expected_formula": "string",
+    "linker_smiles": "string",
     "node_rmsd": "Float64",
     "cif_path": "string",
     "generate_status": "string",
@@ -63,6 +66,7 @@ class GenerateResult:
     notes: list[str] = field(default_factory=list)
     reused: int = 0
     tools: dict[str, str | None] = field(default_factory=dict)
+    linkers: list[dict[str, Any]] = field(default_factory=list)
 
 
 def structure_path(workdir: Path, record_id: str) -> Path:
@@ -129,7 +133,9 @@ def _cif_files(cfg: Config, config_dir: Path) -> tuple[Path, list[Path]]:
     return cif_dir, files
 
 
-def _resolve(cfg: Config, config_dir: Path, adapter: Any) -> tuple[Any, list[Combination], list[str]]:
+def _resolve(
+    cfg: Config, config_dir: Path, adapter: Any
+) -> tuple[Any, list[Combination], list[str], list[LinkerBlock]]:
     """Look up every name of the generate section and enumerate the candidates."""
     from mofsift.generate import pormake_adapter as pa
 
@@ -165,13 +171,41 @@ def _resolve(cfg: Config, config_dir: Path, adapter: Any) -> tuple[Any, list[Com
                 f"generate.edges: {block.name} has {block.n_connection_points} connection points; "
                 "an edge needs exactly 2 (list it under nodes instead)"
             )
+
+    # Linkers given as SMILES join the edges (2 connection points) or the nodes (3 or more).
+    linkers: list[LinkerBlock] = []
+    linker_notes: list[str] = []
+    if gen.linkers is not None:
+        try:
+            pairs = collect_smiles(gen.linkers.smiles_file, gen.linkers.smiles, config_dir)
+        except LinkerError as err:
+            pairs = []
+            problems.append(f"generate.linkers: {err}")
+        taken = set(adapter.known_blocks())
+        clashes = [name for name, _ in pairs if name in taken]
+        if clashes:
+            problems.append(
+                f"generate.linkers: name(s) already used by a building block: {', '.join(clashes)}; "
+                "choose other names"
+            )
+        linkers, failed = build_linkers(
+            [pair for pair in pairs if pair[0] not in taken],
+            seed=cfg.seed,
+            connection_distance=gen.linkers.connection_distance,
+            conformers=gen.linkers.conformers,
+        )
+        problems += [f"generate.linkers: {message}" for message in failed]
+        for linker in linkers:
+            info = BlockInfo(linker.name, linker.n_connection_points, linker.counts, linker.content_hash)
+            (edges if linker.role == "edge" else nodes).append(info)
+            linker_notes += [f"linker {linker.name}: {note}" for note in linker.notes]
     if problems:
         raise GenerateError("\n".join(problems))
 
     combos, notes = enumerate_combinations(topologies, nodes, edges)
     if not combos:
         raise GenerateError("\n".join(["the config does not define any candidate", *notes]))
-    return adapter, combos, notes
+    return adapter, combos, [*linker_notes, *notes], linkers
 
 
 def preview(cfg: Config, config_dir: str | Path = ".", adapter: Any = None) -> tuple[int, list[str]]:
@@ -182,7 +216,7 @@ def preview(cfg: Config, config_dir: str | Path = ".", adapter: Any = None) -> t
     config_dir = Path(config_dir)
     if cfg.generate.source == "cifs":
         return len(_cif_files(cfg, config_dir)[1]), []
-    _, combos, notes = _resolve(cfg, config_dir, adapter)
+    _, combos, notes, _ = _resolve(cfg, config_dir, adapter)
     return len(combos), notes
 
 
@@ -192,9 +226,13 @@ def _from_pormake(
     from mofsift.generate import pormake_adapter as pa
 
     gen = cfg.generate
-    adapter, combos, notes = _resolve(cfg, config_dir, adapter)
+    adapter, combos, notes, linkers = _resolve(cfg, config_dir, adapter)
 
     (workdir / STRUCTURE_DIR).mkdir(parents=True, exist_ok=True)
+    smiles_of = {linker.name: linker.smiles for linker in linkers}
+    for linker in linkers:
+        path = linker.write_xyz(workdir / BLOCK_DIR / f"{linker.name}.xyz")
+        adapter.register_block(linker.name, path, linker.content_hash)
     rows: list[dict[str, Any]] = []
     reused = 0
     for pos, combo in enumerate(combos, start=1):
@@ -207,6 +245,9 @@ def _from_pormake(
             edges="+".join(combo.edges) if combo.edges else pd.NA,
             expected_formula=hill_formula(combo.expected_counts),
         )
+        used = [smiles_of[n] for n in dict.fromkeys([*combo.nodes, *combo.edges]) if n in smiles_of]
+        if used:
+            row["linker_smiles"] = ";".join(used)
         status, reason = STATUS_OK, None
         cif = structure_path(workdir, combo.record_id)
         record = build_record_path(workdir, combo.record_id)
@@ -228,6 +269,7 @@ def _from_pormake(
                         "topology": combo.topology,
                         "nodes": list(combo.nodes),
                         "edges": list(combo.edges),
+                        "linker_smiles": used,
                         "n_atoms": built.n_atoms,
                         "formula": built.formula,
                         "max_rmsd": round(built.max_rmsd, 6),
@@ -255,7 +297,24 @@ def _from_pormake(
             progress(pos, len(combos), combo.name, status, reason)
 
     table = _finish(rows, [c.record_id for c in combos])
-    return GenerateResult(table, notes, reused, {"pormake": pa.pormake_version()})
+    described = [
+        {
+            "name": linker.name,
+            "smiles": linker.smiles,
+            "found_by": linker.mode,
+            "used_as": linker.role,
+            "connection_points": linker.n_connection_points,
+            "formula": linker.formula,
+            "block": _rel(workdir, workdir / BLOCK_DIR / f"{linker.name}.xyz"),
+        }
+        for linker in linkers
+    ]
+    tools = {"pormake": pa.pormake_version()}
+    if linkers:
+        from rdkit import rdBase
+
+        tools["rdkit"] = rdBase.rdkitVersion
+    return GenerateResult(table, notes, reused, tools, described)
 
 
 # ----------------------------------------------------------------------- cifs

@@ -105,6 +105,18 @@
           "title": "Edges",
           "type": "array"
         },
+        "linkers": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LinkersConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Linkers given as SMILES. With two connection points they are used as edges, with three or more as organic nodes, next to the blocks listed in nodes and edges."
+        },
         "max_atoms": {
           "anyOf": [
             {
@@ -200,6 +212,52 @@
         }
       },
       "title": "GeometryConfig",
+      "type": "object"
+    },
+    "LinkersConfig": {
+      "additionalProperties": false,
+      "description": "Organic linkers given as SMILES and converted to PORMAKE building blocks.",
+      "properties": {
+        "conformers": {
+          "default": 10,
+          "description": "Conformers embedded per linker; the lowest in energy is kept.",
+          "maximum": 200,
+          "minimum": 1,
+          "title": "Conformers",
+          "type": "integer"
+        },
+        "connection_distance": {
+          "default": 0.75,
+          "description": "Distance (angstrom) from the anchor atom to the connection point; half a C-C bond.",
+          "exclusiveMinimum": 0,
+          "maximum": 1.5,
+          "title": "Connection Distance",
+          "type": "number"
+        },
+        "smiles": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Linkers written inline, as name: SMILES.",
+          "title": "Smiles",
+          "type": "object"
+        },
+        "smiles_file": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Text file with one 'SMILES name' pair per line; lines starting with # are ignored.",
+          "title": "Smiles File"
+        }
+      },
+      "title": "LinkersConfig",
       "type": "object"
     },
     "QCConfig": {

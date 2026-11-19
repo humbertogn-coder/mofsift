@@ -14,6 +14,11 @@ generate:
   nodes: [N16]               # PORMAKE node building blocks (N16 = Zn4O(CO2)6, the IRMOF node)
   edges: [E14, E34]          # PORMAKE edge building blocks (E14 -> BDC, E34 -> BPDC);
                              # [] = connect the nodes directly (for example tbo with N10 and N409)
+  # linkers:                 # linkers given as SMILES, used next to the PORMAKE blocks above
+  #   smiles:                # 2 connection points -> edge; 3 or more -> organic node
+  #     bdc: "OC(=O)c1ccc(cc1)C(=O)O"     # carboxylic acids are found automatically
+  #     core: "[*]c1ccc([*])cc1"          # or mark the connection points with [*]
+  #   smiles_file: linkers.smi            # one "SMILES name" per line
   max_atoms: 400             # skip larger structures; null = no limit
   # building_block_dir: my_blocks/   # extra blocks in PORMAKE .xyz format
   # cif_dir: my_cifs/                # required when source: cifs

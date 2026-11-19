@@ -1,0 +1,20 @@
+# Linkers written as SMILES, next to one of PORMAKE's own edge blocks.
+# Run:  mofsift run examples/linkers_from_smiles.yaml
+project: linkers_from_smiles
+seed: 42                     # also the seed of the 3D embedding of the linkers
+workdir: work_linkers_from_smiles
+
+generate:
+  source: pormake
+  topologies: [pcu]
+  nodes: [N16]               # Zn4O(CO2)6
+  edges: [E14]               # PORMAKE's block for the BDC linker, for comparison with "bdc" below
+  linkers:
+    smiles_file: linkers.smi # bdc, bpdc, ndc
+    smiles:
+      bdc_nh2: "Nc1cc(C(=O)O)ccc1C(=O)O"   # 2-aminoterephthalic acid
+      bdc_core: "[*]c1ccc([*])cc1"         # the same linker, with the connection points marked
+  max_atoms: 400
+
+filter:
+  - "qc_pass == True"

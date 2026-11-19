@@ -105,6 +105,83 @@ def test_preview_counts_without_building(tmp_path, fake_adapter, cif_dir):
     assert generate.preview(cifs, tmp_path) == (3, [])
 
 
+# ------------------------------------------------------------------- smiles
+BDC = "OC(=O)c1ccc(cc1)C(=O)O"
+BTC = "OC(=O)c1cc(cc(c1)C(=O)O)C(=O)O"
+
+
+def test_linkers_from_smiles_join_the_edges_and_the_nodes(tmp_path, fake_adapter):
+    (tmp_path / "linkers.smi").write_text(f"{BTC} btc\n", encoding="utf-8")
+    cfg = _cfg(
+        topologies=["one", "two"],
+        nodes=["A4"],
+        edges=["L"],
+        linkers={"smiles_file": "linkers.smi", "smiles": {"bdc": BDC}},
+    )
+    res = generate.run(cfg, tmp_path / "work", config_dir=tmp_path, adapter=fake_adapter)
+    t = res.table.set_index("name")
+    # bdc has two connection points: an edge next to L. btc has three: a node for the 3-c vertices of "two".
+    assert list(t.index) == ["one__A4__L", "one__A4__bdc", "two__btc+A4__L", "two__btc+A4__bdc"]
+    assert pd.isna(t.loc["one__A4__L", "linker_smiles"])
+    assert t.loc["one__A4__bdc", "linker_smiles"] == "O=C(O)c1ccc(C(=O)O)cc1"
+    assert t.loc["two__btc+A4__bdc", "linker_smiles"] == (
+        "O=C(O)c1cc(C(=O)O)cc(C(=O)O)c1;O=C(O)c1ccc(C(=O)O)cc1"
+    )
+    # expected formula: 1 x A4 (C) + 2 x bdc core (C6H4)
+    assert t.loc["one__A4__bdc", "expected_formula"] == "C13H8"
+    # the blocks are written in the work folder and handed to the adapter
+    assert sorted(p.name for p in (tmp_path / "work" / "blocks").iterdir()) == ["bdc.xyz", "btc.xyz"]
+    assert set(fake_adapter.registered) == {"bdc", "btc"}
+    assert [(d["name"], d["used_as"], d["formula"]) for d in res.linkers] == [
+        ("btc", "node", "C6H3"),
+        ("bdc", "edge", "C6H4"),
+    ]
+    assert res.tools["rdkit"]
+    record = json.loads(build_record_path(tmp_path / "work", res.table.index[1]).read_text(encoding="utf-8"))
+    assert record["linker_smiles"] == ["O=C(O)c1ccc(C(=O)O)cc1"]
+
+
+def test_linker_ids_follow_the_smiles_and_the_seed(tmp_path, fake_adapter):
+    def first_id(smiles, seed=0):
+        cfg = parse_config(
+            {
+                "project": "t",
+                "seed": seed,
+                "generate": {
+                    "source": "pormake",
+                    "topologies": ["one"],
+                    "nodes": ["A4"],
+                    "linkers": {"smiles": {"lk": smiles}},
+                },
+            }
+        )
+        return generate.run(cfg, tmp_path / f"w{seed}", adapter=fake_adapter).table.index[0]
+
+    assert first_id(BDC) == first_id("O=C(O)c1ccc(C(=O)O)cc1")  # same molecule, written differently
+    assert first_id(BDC) != first_id("OC(=O)c1ccc(cc1)-c1ccc(cc1)C(=O)O")
+    assert first_id(BDC) != first_id(BDC, seed=1)
+
+
+def test_linker_problems_are_config_errors(tmp_path, fake_adapter):
+    cfg = _cfg(linkers={"smiles": {"L": BDC, "bad": "c1ccccc1", "ok": BDC}})
+    with pytest.raises(GenerateError) as err:
+        generate.run(cfg, tmp_path, adapter=fake_adapter)
+    text = str(err.value)
+    assert "generate.linkers: name(s) already used by a building block: L" in text
+    assert "generate.linkers: bad: no connection point found" in text
+    assert not (tmp_path / "blocks").exists()  # nothing was written
+    missing = _cfg(linkers={"smiles_file": "nowhere.smi"})
+    with pytest.raises(GenerateError, match="cannot read the SMILES file"):
+        generate.run(missing, tmp_path, config_dir=tmp_path, adapter=fake_adapter)
+
+
+def test_preview_with_linkers_writes_nothing_and_passes_notes_on(tmp_path, fake_adapter):
+    cfg = _cfg(linkers={"smiles": {"ipa": "OC(=O)c1cccc(c1)C(=O)O"}})
+    n, notes = generate.preview(cfg, tmp_path, adapter=fake_adapter)
+    assert n == 2 and len(notes) == 1 and notes[0].startswith("linker ipa: bent linker")
+    assert list(tmp_path.iterdir()) == []
+
+
 # --------------------------------------------------------------------- cifs
 def _cif_cfg(folder, **gen):
     return parse_config({"project": "t", "generate": {"source": "cifs", "cif_dir": str(folder), **gen}})

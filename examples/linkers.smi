@@ -1,0 +1,6 @@
+# SMILES name
+# Carboxylic acid groups are the connection points; they are removed from the block
+# because the carboxylate belongs to the node in PORMAKE's carboxylate nodes.
+OC(=O)c1ccc(cc1)C(=O)O bdc
+OC(=O)c1ccc(cc1)-c1ccc(cc1)C(=O)O bpdc
+OC(=O)c1ccc2cc(ccc2c1)C(=O)O ndc

@@ -20,8 +20,18 @@ Read this before using any number produced with mofsift.
 
 ## Generation
 
-- Building blocks are PORMAKE blocks (bundled, or your own in PORMAKE's `.xyz` format). Building
-  a linker from a SMILES string is not supported.
+- Building blocks are PORMAKE blocks (bundled, or your own in PORMAKE's `.xyz` format) and
+  linkers converted from SMILES.
+- A linker from SMILES is one conformer: the lowest in MMFF94 energy of a small set embedded by
+  RDKit. For a rigid aromatic linker that is the geometry; for a flexible one it is one choice
+  among many, and bent linkers are flagged but still built.
+- Carboxylic acid groups are removed from a SMILES linker because PORMAKE's carboxylate nodes
+  already contain the carboxylate. With a node that does not, the framework would lack those
+  atoms: mark the connection points with `[*]` instead. mofsift cannot tell which kind of node a
+  block is.
+- The coordinates RDKit produces can differ in the last digits between RDKit versions and
+  platforms. Record IDs do not: they depend on the SMILES, the seed and the conversion settings.
+- `linker_smiles` is known only for linkers given as SMILES, not for PORMAKE's bundled edges.
 - Every edge type of a topology receives the same edge block. Mixed-linker frameworks cannot be
   declared yet.
 - A node is only placed on a vertex with the same number of connection points. The shape can

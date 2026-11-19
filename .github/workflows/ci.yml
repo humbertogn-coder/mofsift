@@ -69,6 +69,7 @@ jobs:
         run: |
           mofsift doctor examples/pormake_small.yaml
           mofsift run examples/pormake_small.yaml
+          mofsift run examples/linkers_from_smiles.yaml
 
   build:
     runs-on: ubuntu-24.04

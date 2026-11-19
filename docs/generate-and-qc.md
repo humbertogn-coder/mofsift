@@ -29,6 +29,48 @@ it takes N409; each is combined with both edges, giving four candidates.
 - A block in `building_block_dir` takes precedence over a bundled block of the same name, and
   its content is part of the record ID, so editing the file gives a new candidate.
 
+### Linkers from SMILES
+
+Linkers can be written as SMILES, alone or next to PORMAKE blocks:
+
+```yaml
+generate:
+  source: pormake
+  topologies: [pcu, tbo]
+  nodes: [N16, N409]
+  edges: [E14]                 # PORMAKE's own blocks still work
+  linkers:
+    smiles_file: linkers.smi   # one "SMILES name" per line; lines starting with # are ignored
+    smiles:                    # and/or inline
+      bdc: "OC(=O)c1ccc(cc1)C(=O)O"
+      core: "[*]c1ccc([*])cc1"
+```
+
+Where a linker connects is decided in one of two ways.
+
+- **Carboxylic acids.** Every `C(=O)OH` or `C(=O)[O-]` group is a connection point, and the
+  group is removed: in PORMAKE's carboxylate nodes (N16, N409 and similar) the carboxylate
+  carbon and oxygens belong to the node. Terephthalic acid therefore becomes a C6H4 block, the
+  same content as PORMAKE's E14, and with N16 on `pcu` it gives the same C24H12O13Zn4 framework.
+- **`[*]` atoms.** Each `[*]` marks a connection point. Use this for any other binding group or
+  node type. When a SMILES contains `[*]`, acid groups are left alone.
+
+The number of connection points decides the role: two make an **edge**, three or more an
+**organic node** (trimesic acid on the 3-connected vertices of `tbo`, for example).
+
+How the block is made: RDKit embeds the molecule in 3D (ETKDG with the config `seed`), MMFF94
+optimises it (UFF when MMFF has no parameters), and the lowest-energy conformer of
+`conformers` (default 10) is cut. Each connection point is placed `connection_distance`
+(default 0.75 A, half a C-C bond, PORMAKE's own convention) from its anchor atom. The block is
+written to `work/blocks/<name>.xyz` in PORMAKE's format, so you can inspect or reuse it.
+
+- A linker name must not be the name of an existing block.
+- A SMILES that cannot be used (invalid, fewer than two connection points, binding groups
+  bonded to each other) is an error that names the linker; `mofsift doctor` shows it.
+- A two-point linker whose connection directions are less than 150 degrees apart is built and
+  reported as bent.
+- The SMILES, the seed and the conversion settings are part of the record ID.
+
 ### `source: cifs`
 
 ```yaml
@@ -60,6 +102,7 @@ aside) are kept once, and the duplicate is reported as a note.
 | `source_file` | Path of the original file inside `cif_dir`; empty for `pormake` |
 | `n_atoms`, `formula` | Of the structure that was built or read (Hill order) |
 | `expected_formula` | Sum of the building blocks; empty for `cifs` |
+| `linker_smiles` | Canonical SMILES of the linkers that were given as SMILES (`;` between several); empty otherwise |
 | `node_rmsd` | Largest node-to-vertex misfit reported by PORMAKE, in angstrom; empty for `cifs` |
 | `cif_path` | Path of the CIF relative to the work folder; empty when there is no structure |
 | `generate_status` | `ok`, `skipped` (too large) or `failed` (build failed, file unreadable) |
