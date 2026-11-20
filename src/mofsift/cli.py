@@ -1,7 +1,7 @@
 """Command-line interface.
 
-This version provides ``init``, ``doctor``, ``generate``, ``qc``, ``describe`` and ``run``.
-The other commands (score, export, merge, validate) are added as each stage is implemented.
+This version provides ``init``, ``doctor``, ``generate``, ``qc``, ``describe``, ``score`` and
+``run``. The other commands (export, merge, validate) are added as each stage is implemented.
 
 Exit codes: 0 = done; 1 = a stage could not run; 2 = the config is invalid.
 """
@@ -30,6 +30,7 @@ from mofsift.runner import (
     run_describe,
     run_generate,
     run_qc,
+    run_score,
 )
 from mofsift.templates import EXAMPLE_CONFIG
 from mofsift.tools import ToolStatus, default_tools
@@ -341,6 +342,28 @@ def describe_command(
     _do_describe(_load_run(config), chosen, part, force, quiet)
 
 
+def _do_score(run_: Run) -> StageOutcome:
+    try:
+        outcome = run_score(run_)
+    except RunnerError as err:
+        typer.echo(f"score cannot run: {err}", err=True)
+        raise typer.Exit(code=1) from err
+    c = outcome.counts
+    typer.echo(
+        f"score: {len(outcome.table)} row(s): {c['ok']} ok, {c['skipped']} skipped, {c['failed']} failed"
+    )
+    for name, n in outcome.details["rows_with_a_value"].items():
+        typer.echo(f"    {name}: {n} row(s) with a value")
+    typer.echo(f"  table: {outcome.path}")
+    return outcome
+
+
+@app.command(name="score")
+def score_command(config: Path = _CONFIG_ARG) -> None:
+    """Add the synthetic-accessibility components (linker scores, precedent counts)."""
+    _do_score(_load_run(config))
+
+
 @app.command(name="run")
 def run_all(config: Path = _CONFIG_ARG, force: bool = _FORCE_OPT, quiet: bool = _QUIET_OPT) -> None:
     """Run every stage that this version implements, in order."""
@@ -348,6 +371,7 @@ def run_all(config: Path = _CONFIG_ARG, force: bool = _FORCE_OPT, quiet: bool = 
     _do_generate(run_, force, quiet)
     _do_qc(run_)
     _do_describe(run_, SUBSTAGES, None, False, quiet)
+    _do_score(run_)
     later = [p.stage for p in plan_stages(run_.cfg, {}) if p.stage.split(".")[0] not in IMPLEMENTED]
     typer.echo(f"Not implemented in this version, so not run: {', '.join(later)}")
 

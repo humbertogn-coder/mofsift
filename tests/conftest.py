@@ -75,9 +75,9 @@ class FakeAdapter:
             "two": TopologyInfo("two", node_cn=(3, 4), n_nodes=(4, 3), n_edges=(12,)),
         }
         self.blocks = {
-            "A4": BlockInfo("A4", 4, {"C": 1}),
-            "B4": BlockInfo("B4", 4, {"C": 1}),
-            "T3": BlockInfo("T3", 3, {"C": 1}),
+            "A4": BlockInfo("A4", 4, {"C": 1}, metal=True),
+            "B4": BlockInfo("B4", 4, {"C": 1}, metal=True),
+            "T3": BlockInfo("T3", 3, {"C": 1}, metal=True),
             "L": BlockInfo("L", 2, {"H": 2}),
             "M": BlockInfo("M", 2, {"H": 2}),
         }

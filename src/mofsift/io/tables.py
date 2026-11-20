@@ -21,6 +21,7 @@ STAGE_FILES: dict[str, str] = {
     "generate": "01_generate.csv",
     "qc": "02_qc.csv",
     "describe": "03_describe.csv",
+    "score": "04_score.csv",
 }
 """File name of each stage's output table, in pipeline order."""
 

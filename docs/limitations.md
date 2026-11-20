@@ -70,11 +70,18 @@ Read this before using any number produced with mofsift.
 ## Synthetic-accessibility components
 
 - There is no accepted single metric of MOF synthesisability. mofsift reports separate, named
-  components (linker scores, precedent of the node, topology and metal–linker pair).
-- The optional aggregate is a rank-based summary with weights declared in the config. It is an
-  indicator, not a probability.
-- Each component must be validated against experimentally reported MOFs before it is trusted; the
-  validation benchmark ships with the scoring stage.
+  components; none is a probability.
+- The SA score and SCScore were developed for drug-like organic molecules and are applied here to
+  linkers only. Nodes, the assembly of the framework and the synthesis conditions are not scored.
+- Precedent counts come from one database (QMOF, a part of the CSD). Zero means "not in this
+  reference". The node is compared at the level of the metal element only.
+- The validation measures resemblance to MOFs that have been made, against hypothetical sets that
+  are not known to be unmakeable. Its outcome changes with the hypothetical set
+  ([score-validation.md](score-validation.md)).
+- The optional aggregate is a rank within one table with weights you choose. It orders
+  candidates; it is not validated and not comparable across tables.
+- The linker of a candidate is known only when it is given as SMILES or is one of PORMAKE's
+  metal-free blocks used on its own; otherwise the linker components are empty.
 
 ## Not included
 

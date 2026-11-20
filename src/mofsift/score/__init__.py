@@ -1,6 +1,18 @@
-"""Synthetic-accessibility components. Only the linker scores exist so far; the score stage
-(table columns, precedent components, validation benchmark) is the next milestone."""
+"""Score stage: synthetic-accessibility components of each candidate, reported separately."""
 
 from mofsift.score.linker import COLUMNS, LinkerScoreError, linker_scores
+from mofsift.score.reference import Reference, load_reference, normalise_linker
+from mofsift.score.stage import COMPONENT_COLUMNS, STAGE, ScoreResult, run
 
-__all__ = ["COLUMNS", "LinkerScoreError", "linker_scores"]
+__all__ = [
+    "COLUMNS",
+    "COMPONENT_COLUMNS",
+    "STAGE",
+    "LinkerScoreError",
+    "Reference",
+    "ScoreResult",
+    "linker_scores",
+    "load_reference",
+    "normalise_linker",
+    "run",
+]

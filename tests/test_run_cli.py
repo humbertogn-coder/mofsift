@@ -47,7 +47,8 @@ def test_run_goes_from_cifs_to_a_checked_table(project):
     assert "generate: 3 row(s): 3 ok, 0 skipped, 0 failed" in res.output
     assert "qc: 3 row(s): 3 ok, 0 skipped, 0 failed; 1 passed the checks, 2 did not" in res.output
     assert "describe.composition: 3 row(s): 3 ok, 0 skipped, 0 failed" in res.output
-    assert "Not implemented in this version, so not run: score, filter, export" in res.output
+    assert "score: 3 row(s): 0 ok, 3 skipped, 0 failed" in res.output  # methane has no linker or metal
+    assert "Not implemented in this version, so not run: filter, export" in res.output
     # the tools for the main descriptors are missing: the run goes on, and says so loudly
     assert "WARNING: describe.geometry did not run: pyzeo is not installed" in res.output
     assert "WARNING: describe.xtb did not run: tblite is not installed" in res.output
@@ -68,7 +69,8 @@ def test_run_goes_from_cifs_to_a_checked_table(project):
 def test_tables_are_identical_on_a_second_run(project):
     work = project.parent / "work"
     assert runner.invoke(cli.app, ["run", str(project), "--quiet"]).exit_code == 0
-    first = {f: sha256_file(work / f) for f in ("01_generate.csv", "02_qc.csv", "03_describe.csv")}
+    names = ("01_generate.csv", "02_qc.csv", "03_describe.csv", "04_score.csv")
+    first = {f: sha256_file(work / f) for f in names}
     quiet = runner.invoke(cli.app, ["run", str(project), "-q"])
     assert quiet.exit_code == 0 and "[1/3]" not in quiet.output
     assert {f: sha256_file(work / f) for f in first} == first
@@ -193,3 +195,13 @@ def test_a_tool_declared_mandatory_stops_describe(project):
     res = runner.invoke(cli.app, ["describe", str(project)])
     assert res.exit_code == 1 and "describe.xtb cannot run: tblite is not installed" in res.output
     assert not (project.parent / "work" / "03_describe.csv").exists()
+
+
+def test_score_command_needs_the_describe_table(project):
+    res = runner.invoke(cli.app, ["score", str(project)])
+    assert res.exit_code == 1 and "run 'mofsift describe" in res.output
+    assert runner.invoke(cli.app, ["run", str(project), "-q"]).exit_code == 0
+    table = read_table(project.parent / "work" / "04_score.csv")
+    assert (table["score_status"] == "skipped").all() and table["linker_sa"].isna().all()
+    meta = json.loads((project.parent / "work" / "04_score.meta.json").read_text(encoding="utf-8"))
+    assert meta["details"]["reference"]["n_mofs"] > 10000 and "QMOF" in meta["details"]["reference"]["source"]

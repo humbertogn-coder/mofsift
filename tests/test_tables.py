@@ -79,5 +79,6 @@ def test_stage_table_paths(tmp_path):
     assert stage_table_path(tmp_path, "generate").name == "01_generate.csv"
     assert stage_table_path(tmp_path, "qc").name == "02_qc.csv"
     assert stage_table_path(tmp_path, "describe").name == "03_describe.csv"
+    assert stage_table_path(tmp_path, "score").name == "04_score.csv"
     with pytest.raises(TableError):
         stage_table_path(tmp_path, "nope")

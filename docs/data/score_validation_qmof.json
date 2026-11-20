@@ -1,0 +1,125 @@
+{
+  "qmof_rows": 20372,
+  "distinct_synthesised": 10595,
+  "distinct_hypothetical": 3310,
+  "hypothetical_identical_to_synthesised_left_out": 6,
+  "hypothetical_by_source": {
+    "Haranczyk_MOF5": 79,
+    "GMOF": 1294,
+    "BoydWoo": 1802,
+    "Haranczyk_MOF74": 2,
+    "Anderson": 66,
+    "ToBaCCo": 67
+  },
+  "folds": 5,
+  "components": {
+    "linker_sa": {
+      "auc_mean": 0.693,
+      "auc_sd": 0.007,
+      "n_synthesised": 10595,
+      "n_hypothetical": 3310,
+      "better_when": "smaller"
+    },
+    "linker_sc": {
+      "auc_mean": 0.743,
+      "auc_sd": 0.006,
+      "n_synthesised": 10595,
+      "n_hypothetical": 3310,
+      "better_when": "smaller"
+    },
+    "linker_size": {
+      "auc_mean": 0.799,
+      "auc_sd": 0.004,
+      "n_synthesised": 10595,
+      "n_hypothetical": 3310,
+      "better_when": "smaller"
+    },
+    "linker_rotatable_bonds": {
+      "auc_mean": 0.623,
+      "auc_sd": 0.002,
+      "n_synthesised": 10595,
+      "n_hypothetical": 3310,
+      "better_when": "smaller"
+    },
+    "precedent_topology": {
+      "auc_mean": 0.627,
+      "auc_sd": 0.015,
+      "n_synthesised": 3910,
+      "n_hypothetical": 3222,
+      "better_when": "larger"
+    },
+    "precedent_node": {
+      "auc_mean": 0.446,
+      "auc_sd": 0.003,
+      "n_synthesised": 10595,
+      "n_hypothetical": 3310,
+      "better_when": "larger"
+    },
+    "precedent_linker": {
+      "auc_mean": 0.86,
+      "auc_sd": 0.003,
+      "n_synthesised": 10595,
+      "n_hypothetical": 3310,
+      "better_when": "larger"
+    },
+    "precedent_pair": {
+      "auc_mean": 0.676,
+      "auc_sd": 0.004,
+      "n_synthesised": 10595,
+      "n_hypothetical": 3310,
+      "better_when": "larger"
+    }
+  },
+  "auc_by_hypothetical_source": {
+    "Anderson": {
+      "linker_sa": 0.728,
+      "linker_sc": 0.748,
+      "linker_size": 0.903,
+      "linker_rotatable_bonds": 0.603,
+      "precedent_topology": 0.81,
+      "precedent_node": 0.998,
+      "precedent_linker": 0.816,
+      "precedent_pair": 0.668
+    },
+    "BoydWoo": {
+      "linker_sa": 0.788,
+      "linker_sc": 0.817,
+      "linker_size": 0.837,
+      "linker_rotatable_bonds": 0.681,
+      "precedent_topology": 0.587,
+      "precedent_node": 0.307,
+      "precedent_linker": 0.872,
+      "precedent_pair": 0.681
+    },
+    "GMOF": {
+      "linker_sa": 0.563,
+      "linker_sc": 0.646,
+      "linker_size": 0.752,
+      "linker_rotatable_bonds": 0.543,
+      "precedent_topology": 0.671,
+      "precedent_node": 0.635,
+      "precedent_linker": 0.853,
+      "precedent_pair": 0.677
+    },
+    "Haranczyk_MOF5": {
+      "linker_sa": 0.408,
+      "linker_sc": 0.493,
+      "linker_size": 0.528,
+      "linker_rotatable_bonds": 0.534,
+      "precedent_topology": 0.419,
+      "precedent_node": 0.095,
+      "precedent_linker": 0.715,
+      "precedent_pair": 0.559
+    },
+    "ToBaCCo": {
+      "linker_sa": 0.938,
+      "linker_sc": 0.928,
+      "linker_size": 0.925,
+      "linker_rotatable_bonds": 0.715,
+      "precedent_topology": 0.915,
+      "precedent_node": 0.42,
+      "precedent_linker": 0.875,
+      "precedent_pair": 0.683
+    }
+  }
+}

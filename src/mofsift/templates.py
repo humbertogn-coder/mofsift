@@ -56,11 +56,19 @@ describe:
     on_missing: skip
 
 score:                       # synthetic-accessibility components, reported separately
-  components: [linker_sa, precedent_node, precedent_topology, precedent_pair]
+  components:
+    - linker_sa              # SA score of the linker: 1 (easy) to 10 (hard)
+    - linker_sc              # SCScore of the linker: 1 (simple) to 5 (complex)
+    - linker_size            # heavy atoms
+    - linker_rotatable_bonds
+    - precedent_topology     # distinct synthesised MOFs (QMOF) with this topology
+    - precedent_node         # ... with this metal in the node
+    - precedent_linker       # ... with this linker
+    - precedent_pair         # ... with this metal and this linker
   strain: {enabled: false}   # not available in this version
-  aggregate:                 # optional rank-based summary; it is not a probability
+  aggregate:                 # optional rank-based indicator within this table; not a probability
     enabled: false
-    weights: {}
+    weights: {}              # for example {linker_sc: 1, precedent_linker: 1}
 
 filter:                      # explicit row filters; rejected rows stay visible in the full table
   - "qc_pass == True"

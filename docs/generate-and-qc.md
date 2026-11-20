@@ -102,7 +102,7 @@ aside) are kept once, and the duplicate is reported as a note.
 | `source_file` | Path of the original file inside `cif_dir`; empty for `pormake` |
 | `n_atoms`, `formula` | Of the structure that was built or read (Hill order) |
 | `expected_formula` | Sum of the building blocks; empty for `cifs` |
-| `linker_smiles` | Canonical SMILES of the linkers that were given as SMILES (`;` between several); empty otherwise |
+| `linker_smiles` | Canonical SMILES of the linkers (`;` between several) when they are known: given as SMILES, or the acid a metal-free PORMAKE block stands for. Empty when a metal-free node is joined to an edge, and for `cifs` |
 | `node_rmsd` | Largest node-to-vertex misfit reported by PORMAKE, in angstrom; empty for `cifs` |
 | `cif_path` | Path of the CIF relative to the work folder; empty when there is no structure |
 | `generate_status` | `ok`, `skipped` (too large) or `failed` (build failed, file unreadable) |

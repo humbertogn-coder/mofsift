@@ -13,9 +13,9 @@ config.yaml -> generate -> qc -> describe -> score -> filter -> export -> viewer
 Most open MOF workflows target gas adsorption. mofsift targets **electronic properties**
 (band gap and related proxies).
 
-> **Status: pre-alpha, private repository.** This version runs `generate`, `qc` and `describe`
-> (composition, pore geometry, xTB). Scoring and export are not implemented yet
-> (see [Roadmap](#roadmap)).
+> **Status: pre-alpha.** This version runs `generate`, `qc`, `describe` (composition, pore
+> geometry, xTB) and `score` (synthetic-accessibility components). Filtering and export are not
+> implemented yet (see [Roadmap](#roadmap)).
 
 ## Read this first
 
@@ -58,7 +58,7 @@ run the geometry and xTB stages under WSL or on a cluster. Conda users: `environ
 ```bash
 mofsift init                  # writes a commented example config: mofsift.yaml
 mofsift doctor mofsift.yaml   # tools found, config valid, how many candidates, which stages run
-mofsift run mofsift.yaml      # generate + qc + describe (the stages implemented so far)
+mofsift run mofsift.yaml      # generate + qc + describe + score (the stages implemented so far)
 ```
 
 The example config assembles two IRMOF-type frameworks with PORMAKE (Zn4O node on the `pcu` net
@@ -69,6 +69,7 @@ work/
   01_generate.csv        one row per candidate: id, blocks, formula, path of the CIF, status
   02_qc.csv              the same rows plus the check results and qc_pass
   03_describe.csv        the same rows plus composition, pore geometry and xTB columns
+  04_score.csv           the same rows plus the synthetic-accessibility components
   describe/              one stored result per structure and sub-stage (reused on later runs)
   run.log                what ran, what was skipped, and why
   *.meta.json            what produced each table (versions, config hash, counts)
@@ -90,6 +91,17 @@ a table can be split over cluster jobs (`--block 3/20`) and assembled afterwards
 machine without the tools. If pyzeo or tblite is missing the stage is skipped with a warning.
 Columns, settings and what the xTB numbers mean: [docs/describe.md](docs/describe.md).
 Installing the tools (Linux, Windows with WSL, clusters): [docs/install.md](docs/install.md).
+
+### Synthetic-accessibility components
+
+`mofsift score` adds separate, named components: SA score, SCScore, size and rotatable bonds of
+the linker, and how many distinct synthesised MOFs in a reference built from the QMOF database
+share the candidate's topology, metal, linker, and metal-linker pair. None is a probability.
+How well each one separates synthesised from hypothetical MOFs is measured and reported in
+[docs/score-validation.md](docs/score-validation.md); details in [docs/score.md](docs/score.md).
+
+The commands for Windows, a Slurm cluster and GitHub are collected in
+[docs/running.md](docs/running.md).
 
 ### Linkers from SMILES
 
@@ -153,8 +165,8 @@ recorded. Set `enabled: true` together with `on_missing: error` to make a tool m
 | 1 | Skeleton: install, `init`, `doctor`, config validation, CI | done locally; CI to be confirmed on the first push |
 | 2 | Generate (PORMAKE blocks, linkers from SMILES, or existing CIFs) + QC | done locally |
 | 3 | Describe: composition, pore geometry (pyzeo), xTB (tblite) | done locally |
-| 4 | Score: linker and precedent components, with a published validation benchmark | next |
-| 5 | Export: table + viewer bundle + manifest; `merge`; `validate` | planned |
+| 4 | Score: linker and precedent components, with a published validation benchmark | done locally |
+| 5 | Export: table + viewer bundle + manifest; `merge`; `validate` | next |
 | 6 | Viewer support for generic bundles | planned |
 | 7 | Docs, tutorial, release preparation | planned |
 
@@ -180,6 +192,10 @@ MIT licence; see [LICENSE](LICENSE) and [CITATION.cff](CITATION.cff).
 
 mofsift builds on PORMAKE, Zeo++ (via pyzeo), tblite, RDKit, ASE and pymatgen. Please cite
 them when you use the corresponding stages.
+
+Included third-party data: precedent counts derived from the QMOF database (A. S. Rosen et al.,
+Matter 2021, 4, 1578; npj Comput. Mater. 2022, 8, 195), which is distributed under CC BY 4.0, in
+`src/mofsift/score/data/`. The file holds counts computed by mofsift, not the original data.
 
 Included third-party code: SCScore (C. W. Coley et al., MIT licence), code and model weights, in
 `src/mofsift/score/_scscore/` with its licence and source.

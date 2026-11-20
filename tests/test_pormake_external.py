@@ -151,6 +151,27 @@ def test_a_tritopic_linker_from_smiles_is_used_as_a_node(tmp_path):
     assert row["linker_smiles"] == "O=C(O)c1cc(C(=O)O)cc(C(=O)O)c1"
 
 
+def test_linker_smiles_of_bundled_blocks(tmp_path):
+    from mofsift.generate.pormake_adapter import PormakeAdapter
+
+    adapter = PormakeAdapter()
+    # E14 and E34 stand for terephthalic and biphenyl-4,4'-dicarboxylic acid; N10 for trimesic acid
+    assert adapter.block_smiles("E14") == "O=C(O)c1ccc(C(=O)O)cc1"
+    assert adapter.block_smiles("E34") == "O=C(O)c1ccc(-c2ccc(C(=O)O)cc2)cc1"
+    assert adapter.block_smiles("N10") == "O=C(O)c1cc(C(=O)O)cc(C(=O)O)c1"
+    assert adapter.block_smiles("N16") is None and adapter.block_smiles("N409") is None  # metal nodes
+    table = generate.run(_cfg(edges=["E14", "E34"]), tmp_path).table.set_index("name")
+    assert table.loc["pcu__N16__E14", "linker_smiles"] == "O=C(O)c1ccc(C(=O)O)cc1"
+    # N10 (metal-free node) joined directly to the Cu paddlewheel: the linker is trimesic acid;
+    # with an edge in between it would be a larger linker, which is not derived
+    hkust = generate.run(_cfg(topologies=["tbo"], nodes=["N10", "N409"], edges=[]), tmp_path / "b").table
+    assert hkust["linker_smiles"].item() == "O=C(O)c1cc(C(=O)O)cc(C(=O)O)c1"
+    fused = generate.run(
+        _cfg(topologies=["tbo"], nodes=["N10", "N409"], edges=["E14"], max_atoms=10), tmp_path / "c"
+    ).table
+    assert fused["linker_smiles"].isna().all()
+
+
 def test_linker_names_cannot_shadow_pormake_blocks(tmp_path):
     cfg = _cfg(linkers={"smiles": {"E34": "OC(=O)c1ccc(cc1)C(=O)O"}})
     with pytest.raises(GenerateError, match="already used by a building block: E34"):

@@ -136,7 +136,7 @@ def _cif_files(cfg: Config, config_dir: Path) -> tuple[Path, list[Path]]:
 
 def _resolve(
     cfg: Config, config_dir: Path, adapter: Any
-) -> tuple[Any, list[Combination], list[str], list[LinkerBlock]]:
+) -> tuple[Any, list[Combination], list[str], list[LinkerBlock], dict[str, BlockInfo]]:
     """Look up every name of the generate section and enumerate the candidates."""
     from mofsift.generate import pormake_adapter as pa
 
@@ -197,7 +197,9 @@ def _resolve(
         )
         problems += [f"generate.linkers: {message}" for message in failed]
         for linker in linkers:
-            info = BlockInfo(linker.name, linker.n_connection_points, linker.counts, linker.content_hash)
+            info = BlockInfo(
+                linker.name, linker.n_connection_points, linker.counts, linker.content_hash, linker.smiles
+            )
             (edges if linker.role == "edge" else nodes).append(info)
             linker_notes += [f"linker {linker.name}: {note}" for note in linker.notes]
     if problems:
@@ -206,7 +208,24 @@ def _resolve(
     combos, notes = enumerate_combinations(topologies, nodes, edges)
     if not combos:
         raise GenerateError("\n".join(["the config does not define any candidate", *notes]))
-    return adapter, combos, [*linker_notes, *notes], linkers
+    blocks = {b.name: b for b in [*nodes, *edges]}
+    return adapter, combos, [*linker_notes, *notes], linkers, blocks
+
+
+def linker_smiles_of(combo: Combination, blocks: dict[str, BlockInfo]) -> str | None:
+    """SMILES of the organic linkers of a candidate (``;`` between several), or None when unknown.
+
+    Unknown when a metal-free block has no SMILES, and when a metal-free node is joined to an
+    edge: the two then form one larger linker whose SMILES is not derived here.
+    """
+    organic_nodes = [n for n in dict.fromkeys(combo.nodes) if not blocks[n].has_metal]
+    edges = list(dict.fromkeys(combo.edges))
+    if organic_nodes and edges:
+        return None
+    found = [blocks[n].smiles for n in [*organic_nodes, *edges]]
+    if not found or any(s is None for s in found):
+        return None
+    return ";".join(dict.fromkeys(found))
 
 
 def preview(cfg: Config, config_dir: str | Path = ".", adapter: Any = None) -> tuple[int, list[str]]:
@@ -217,7 +236,7 @@ def preview(cfg: Config, config_dir: str | Path = ".", adapter: Any = None) -> t
     config_dir = Path(config_dir)
     if cfg.generate.source == "cifs":
         return len(_cif_files(cfg, config_dir)[1]), []
-    _, combos, notes, _ = _resolve(cfg, config_dir, adapter)
+    _, combos, notes, _, _ = _resolve(cfg, config_dir, adapter)
     return len(combos), notes
 
 
@@ -227,10 +246,9 @@ def _from_pormake(
     from mofsift.generate import pormake_adapter as pa
 
     gen = cfg.generate
-    adapter, combos, notes, linkers = _resolve(cfg, config_dir, adapter)
+    adapter, combos, notes, linkers, blocks = _resolve(cfg, config_dir, adapter)
 
     (workdir / STRUCTURE_DIR).mkdir(parents=True, exist_ok=True)
-    smiles_of = {linker.name: linker.smiles for linker in linkers}
     for linker in linkers:
         path = linker.write_xyz(workdir / BLOCK_DIR / f"{linker.name}.xyz")
         adapter.register_block(linker.name, path, linker.content_hash)
@@ -246,9 +264,10 @@ def _from_pormake(
             edges="+".join(combo.edges) if combo.edges else pd.NA,
             expected_formula=hill_formula(combo.expected_counts),
         )
-        used = [smiles_of[n] for n in dict.fromkeys([*combo.nodes, *combo.edges]) if n in smiles_of]
-        if used:
-            row["linker_smiles"] = ";".join(used)
+        linker_smiles = linker_smiles_of(combo, blocks)
+        used = linker_smiles.split(";") if linker_smiles else []
+        if linker_smiles:
+            row["linker_smiles"] = linker_smiles
         status, reason = STATUS_OK, None
         cif = structure_path(workdir, combo.record_id)
         record = build_record_path(workdir, combo.record_id)

@@ -12,6 +12,7 @@ import itertools
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
+from mofsift.chem import is_metal
 from mofsift.ids import record_id, record_name
 
 
@@ -29,6 +30,14 @@ class BlockInfo:
     n_connection_points: int
     counts: Mapping[str, int] = field(default_factory=dict)  # composition without connection points
     content_hash: str | None = None  # set only for user-supplied blocks
+    smiles: str | None = None  # the linker this block stands for, when known
+    metal: bool | None = None  # whether the block contains a metal; None = decide from counts
+
+    @property
+    def has_metal(self) -> bool:
+        if self.metal is not None:
+            return self.metal
+        return any(is_metal(el) for el, n in self.counts.items() if n)
 
 
 @dataclass(frozen=True)

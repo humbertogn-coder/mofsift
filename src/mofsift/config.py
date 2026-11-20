@@ -34,8 +34,11 @@ ScoreComponent = Literal[
     "linker_rotatable_bonds",
     "precedent_node",
     "precedent_topology",
+    "precedent_linker",
     "precedent_pair",
 ]
+NOT_IN_AGGREGATE = {"precedent_node": "it does not separate synthesised from hypothetical MOFs"}
+"""Components that may be reported but not weighted (see docs/score-validation.md)."""
 
 _PROJECT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
@@ -243,7 +246,16 @@ class ScoreConfig(_Model):
     """Synthetic-accessibility components, reported separately."""
 
     components: list[ScoreComponent] = Field(
-        default_factory=lambda: ["linker_sa", "precedent_node", "precedent_topology", "precedent_pair"]
+        default_factory=lambda: [
+            "linker_sa",
+            "linker_sc",
+            "linker_size",
+            "linker_rotatable_bonds",
+            "precedent_topology",
+            "precedent_node",
+            "precedent_linker",
+            "precedent_pair",
+        ]
     )
     strain: StrainConfig = Field(default_factory=StrainConfig)
     aggregate: AggregateConfig = Field(default_factory=AggregateConfig)
@@ -261,6 +273,8 @@ class ScoreConfig(_Model):
         unknown = sorted(set(agg.weights) - set(self.components))
         if unknown:
             raise ValueError(f"aggregate.weights for components that are not listed: {', '.join(unknown)}")
+        for name in sorted(set(agg.weights) & set(NOT_IN_AGGREGATE)):
+            raise ValueError(f"aggregate.weights: {name} cannot be weighted: {NOT_IN_AGGREGATE[name]}")
         return self
 
 

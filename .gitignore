@@ -20,3 +20,6 @@ POTCAR*
 WAVECAR*
 *.pkl
 .env
+# public datasets used by the scripts; download them, do not commit them
+qmof.csv
+qmof_database.zip

@@ -381,6 +381,7 @@
               "linker_rotatable_bonds",
               "precedent_node",
               "precedent_topology",
+              "precedent_linker",
               "precedent_pair"
             ],
             "type": "string"

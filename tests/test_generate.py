@@ -124,9 +124,9 @@ def test_linkers_from_smiles_join_the_edges_and_the_nodes(tmp_path, fake_adapter
     assert list(t.index) == ["one__A4__L", "one__A4__bdc", "two__btc+A4__L", "two__btc+A4__bdc"]
     assert pd.isna(t.loc["one__A4__L", "linker_smiles"])
     assert t.loc["one__A4__bdc", "linker_smiles"] == "O=C(O)c1ccc(C(=O)O)cc1"
-    assert t.loc["two__btc+A4__bdc", "linker_smiles"] == (
-        "O=C(O)c1cc(C(=O)O)cc(C(=O)O)c1;O=C(O)c1ccc(C(=O)O)cc1"
-    )
+    # a metal-free node joined to an edge forms one larger linker: its SMILES is not claimed
+    assert pd.isna(t.loc["two__btc+A4__bdc", "linker_smiles"])
+    assert pd.isna(t.loc["two__btc+A4__L", "linker_smiles"])
     # expected formula: 1 x A4 (C) + 2 x bdc core (C6H4)
     assert t.loc["one__A4__bdc", "expected_formula"] == "C13H8"
     # the blocks are written in the work folder and handed to the adapter
@@ -139,6 +139,13 @@ def test_linkers_from_smiles_join_the_edges_and_the_nodes(tmp_path, fake_adapter
     assert res.tools["rdkit"]
     record = json.loads(build_record_path(tmp_path / "work", res.table.index[1]).read_text(encoding="utf-8"))
     assert record["linker_smiles"] == ["O=C(O)c1ccc(C(=O)O)cc1"]
+
+
+def test_a_tritopic_linker_without_edges_is_the_linker(tmp_path, fake_adapter):
+    cfg = _cfg(topologies=["two"], edges=[], linkers={"smiles": {"btc": BTC}})
+    t = generate.run(cfg, tmp_path, adapter=fake_adapter).table
+    assert list(t["name"]) == ["two__btc+A4"]
+    assert t["linker_smiles"].item() == "O=C(O)c1cc(C(=O)O)cc(C(=O)O)c1"
 
 
 def test_linker_ids_follow_the_smiles_and_the_seed(tmp_path, fake_adapter):

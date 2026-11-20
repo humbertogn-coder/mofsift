@@ -5,6 +5,19 @@ All notable changes are listed here. The format follows Keep a Changelog; versio
 ## [Unreleased]
 
 ### Added
+- `score` stage (`mofsift score`, table `work/04_score.csv`): linker components (`linker_sa`,
+  `linker_sc`, `linker_size`, `linker_rotatable_bonds`) and precedent components
+  (`precedent_topology`, `precedent_node`, `precedent_linker`, `precedent_pair`) as separate
+  columns, with `score_notes` for what could not be computed. Optional rank-based
+  `score_aggregate`.
+- Precedent reference built from the synthesised structures of the QMOF database (CC BY 4.0):
+  10,595 distinct MOFs. `scripts/build_precedent_reference.py` rebuilds it.
+- Validation benchmark, `scripts/validate_score_components.py`, and its result in
+  `docs/score-validation.md`: ROC-AUC of every component for synthesised against hypothetical
+  MOFs of QMOF, with cross-validated precedent counts. `precedent_node` does not separate the
+  sets and cannot be given a weight in the aggregate.
+- `linker_smiles` is now also filled for PORMAKE's metal-free blocks (the acid they stand for).
+- `docs/score.md`, `docs/running.md` (commands for Windows, a Slurm cluster and GitHub).
 - `describe` stage with three sub-stages, each with its own status columns: composition
   descriptors (no extra tool), pore geometry from Zeo++ (pyzeo, or the `network` binary) and
   periodic GFN-xTB gap and frontier levels (tblite).
@@ -47,6 +60,9 @@ All notable changes are listed here. The format follows Keep a Changelog; versio
 - CI: a job that installs PORMAKE and runs the tests marked `external`.
 
 ### Changed
+- `linker_smiles` is empty when a metal-free node is joined to an edge (the two form one larger
+  linker, which is not derived); before, the SMILES of both blocks were listed.
+- `score.components` lists all eight components by default; new component `precedent_linker`.
 - `describe.geometry.high_accuracy` takes `OCC` (default), `DEF` or `false` instead of true/false.
 - `generate.edges` may be empty.
 

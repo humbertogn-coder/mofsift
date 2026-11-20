@@ -21,7 +21,7 @@ from typing import Any
 
 import numpy as np
 
-from mofsift.chem import count_symbols
+from mofsift.chem import count_symbols, is_metal
 from mofsift.generate.enumerate import BlockInfo, Combination, TopologyInfo
 
 
@@ -182,7 +182,61 @@ class PormakeAdapter:
             n_connection_points=int(block.n_connection_points),
             counts=count_symbols(symbols),
             content_hash=self._block_hash[name],
+            smiles=self.block_smiles(name),
         )
+
+    def block_smiles(self, name: str) -> str | None:
+        """SMILES of the linker that a metal-free block stands for, or None when it is not clear.
+
+        A connection point on a carbon atom is read as a carboxylic acid group (the block is
+        joined to a carboxylate node); one on a nitrogen atom as a donor atom that binds the
+        metal directly. Anything else, and blocks that contain a metal, give None.
+        """
+        from rdkit import Chem, RDLogger
+
+        from mofsift.score.reference import normalise_linker
+
+        block = self._block(name)
+        symbols = block.atoms.get_chemical_symbols()
+        if any(s != "X" and is_metal(s) for s in symbols) or block.bonds is None:
+            return None
+        orders = {"S": Chem.BondType.SINGLE, "D": Chem.BondType.DOUBLE, "T": Chem.BondType.TRIPLE}
+        mol = Chem.RWMol()
+        index: dict[int, int] = {}
+        for i, s in enumerate(symbols):
+            if s != "X":
+                atom = Chem.Atom(s)
+                atom.SetNoImplicit(True)  # every hydrogen of a block is written out
+                index[i] = mol.AddAtom(atom)
+        anchors: list[int] = []
+        for (a, b), kind in zip(block.bonds, block.bond_types, strict=True):
+            a, b = int(a), int(b)
+            if symbols[a] == "X" or symbols[b] == "X":
+                anchors.append(b if symbols[a] == "X" else a)
+            elif kind == "A":
+                mol.AddBond(index[a], index[b], Chem.BondType.AROMATIC)
+                for k in (a, b):
+                    mol.GetAtomWithIdx(index[k]).SetIsAromatic(True)
+            elif kind in orders:
+                mol.AddBond(index[a], index[b], orders[kind])
+            else:
+                return None
+        for anchor in anchors:
+            if symbols[anchor] == "C":
+                carbon, double, single = (mol.AddAtom(Chem.Atom(el)) for el in ("C", "O", "O"))
+                mol.AddBond(index[anchor], carbon, Chem.BondType.SINGLE)
+                mol.AddBond(carbon, double, Chem.BondType.DOUBLE)
+                mol.AddBond(carbon, single, Chem.BondType.SINGLE)
+            elif symbols[anchor] != "N":
+                return None
+        RDLogger.DisableLog("rdApp.*")
+        try:
+            Chem.SanitizeMol(mol)
+            return normalise_linker(Chem.MolToSmiles(Chem.RemoveHs(mol)))
+        except Exception:
+            return None
+        finally:
+            RDLogger.EnableLog("rdApp.*")
 
     # ---------------------------------------------------------------- building
     def build(self, combo: Combination) -> BuiltStructure:

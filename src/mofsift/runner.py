@@ -17,13 +17,13 @@ from typing import Any
 
 import pandas as pd
 
-from mofsift import __version__, describe, generate, qc
+from mofsift import __version__, describe, generate, qc, score
 from mofsift.config import Config, load_config, resolve_path
 from mofsift.io.tables import TableError, read_table, sha256_file, stage_table_path, write_table
 from mofsift.plan import plan_stages
 from mofsift.stages import status_counts
 
-IMPLEMENTED = ("generate", "qc", "describe")
+IMPLEMENTED = ("generate", "qc", "describe", "score")
 RUN_LOG = "run.log"
 """Stages that this version can run, in order."""
 
@@ -254,4 +254,38 @@ def run_describe(
         write_table(result.table, path)
         tools = {d: _version(d) for d in ("ase", "pymatgen", "pyzeo", "tblite")}
         _write_meta(run, outcome, tools)
+    return outcome
+
+
+def run_score(run: Run) -> StageOutcome:
+    """Add the synthetic-accessibility components to the describe table."""
+    source = stage_table_path(run.workdir, describe.STAGE)
+    if not source.exists():
+        raise RunnerError(
+            f"{source} does not exist; run 'mofsift describe {run.config_path}' first "
+            "(or 'mofsift run' for all stages)"
+        )
+    try:
+        result = score.run(read_table(source), run.cfg, run.workdir)
+    except (TableError, ValueError) as err:
+        raise RunnerError(f"{source}: {err}") from err
+    path = write_table(result.table, stage_table_path(run.workdir, score.STAGE))
+    outcome = StageOutcome(
+        stage=score.STAGE,
+        table=result.table,
+        path=path,
+        counts=status_counts(result.table, score.STAGE),
+        details={
+            "rows_with_a_value": result.available,
+            "reference": result.reference,
+            "aggregate": dict(run.cfg.score.aggregate.weights) if run.cfg.score.aggregate.enabled else None,
+            "input_sha256": sha256_file(source),
+        },
+    )
+    _write_meta(run, outcome, {"rdkit": _version("rdkit")})
+    available = ", ".join(f"{name} {n}" for name, n in result.available.items())
+    log_event(
+        run,
+        f"score: {len(result.table)} rows, {_counts_text(outcome.counts)}; rows with a value: {available}",
+    )
     return outcome

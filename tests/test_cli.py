@@ -76,7 +76,7 @@ def test_doctor_with_config_all_tools(tmp_path, monkeypatch):
     assert res.exit_code == 0, res.output
     assert "valid (project demo_irmof" in res.stdout
     assert "2 candidate(s)" in res.stdout
-    assert "runs generate, qc, describe" in res.stdout  # no claim that the later stages exist
+    assert "runs generate, qc, describe, score" in res.stdout  # no claim that the later stages exist
 
 
 def test_doctor_reports_skips_as_success_and_blocked_generate_as_failure(tmp_path, monkeypatch):
@@ -122,7 +122,7 @@ def test_doctor_json_shape(monkeypatch):
     assert {"name", "tier", "available", "version", "hint"} <= set(payload["tools"][0])
 
 
-@pytest.mark.parametrize("command", ["score", "export", "merge", "validate"])
+@pytest.mark.parametrize("command", ["export", "merge", "validate"])
 def test_unimplemented_stage_commands_are_not_exposed(command):
     res = runner.invoke(cli.app, [command])
     assert res.exit_code == 2 and "No such command" in res.output
