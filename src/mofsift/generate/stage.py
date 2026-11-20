@@ -12,6 +12,7 @@ care where a structure came from.
 
 from __future__ import annotations
 
+import importlib.metadata
 import json
 import os
 from collections.abc import Callable
@@ -309,7 +310,13 @@ def _from_pormake(
         }
         for linker in linkers
     ]
+    # The libraries PORMAKE computes with are recorded too: its geometry can depend on them.
     tools = {"pormake": pa.pormake_version()}
+    for dist in ("jax", "scipy", "numpy"):
+        try:
+            tools[dist] = importlib.metadata.version(dist)
+        except importlib.metadata.PackageNotFoundError:
+            tools[dist] = None
     if linkers:
         from rdkit import rdBase
 

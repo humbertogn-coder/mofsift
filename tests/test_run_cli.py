@@ -14,6 +14,21 @@ from mofsift.io.tables import read_table, sha256_file
 runner = CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def _without_geometry_and_xtb_tools(monkeypatch):
+    """These runs must not depend on whether pyzeo and tblite happen to be installed."""
+    real = cli.default_tools
+
+    def tools(cfg=None):
+        found = real(cfg)
+        for tool in found:
+            if tool.name in ("pyzeo", "tblite", "zeo++ (network)"):
+                tool.check = lambda: (False, "not installed")
+        return found
+
+    monkeypatch.setattr(cli, "default_tools", tools)
+
+
 @pytest.fixture
 def project(tmp_path, cif_dir):
     """A config next to a folder of CIFs; returns the config path."""
@@ -31,7 +46,11 @@ def test_run_goes_from_cifs_to_a_checked_table(project):
     assert "[3/3] two_pieces: ok" in res.output
     assert "generate: 3 row(s): 3 ok, 0 skipped, 0 failed" in res.output
     assert "qc: 3 row(s): 3 ok, 0 skipped, 0 failed; 1 passed the checks, 2 did not" in res.output
-    assert "Not implemented in this version, so not run: describe.composition" in res.output
+    assert "describe.composition: 3 row(s): 3 ok, 0 skipped, 0 failed" in res.output
+    assert "Not implemented in this version, so not run: score, filter, export" in res.output
+    # the tools for the main descriptors are missing: the run goes on, and says so loudly
+    assert "WARNING: describe.geometry did not run: pyzeo is not installed" in res.output
+    assert "WARNING: describe.xtb did not run: tblite is not installed" in res.output
     work = project.parent / "work"
     table = read_table(work / "02_qc.csv")
     assert table.set_index("name")["qc_pass"].to_dict() == {"clash": False, "good": True, "two_pieces": False}
@@ -49,7 +68,7 @@ def test_run_goes_from_cifs_to_a_checked_table(project):
 def test_tables_are_identical_on_a_second_run(project):
     work = project.parent / "work"
     assert runner.invoke(cli.app, ["run", str(project), "--quiet"]).exit_code == 0
-    first = {f: sha256_file(work / f) for f in ("01_generate.csv", "02_qc.csv")}
+    first = {f: sha256_file(work / f) for f in ("01_generate.csv", "02_qc.csv", "03_describe.csv")}
     quiet = runner.invoke(cli.app, ["run", str(project), "-q"])
     assert quiet.exit_code == 0 and "[1/3]" not in quiet.output
     assert {f: sha256_file(work / f) for f in first} == first
@@ -131,3 +150,46 @@ def test_qc_explains_a_table_it_cannot_use(project):
     res = runner.invoke(cli.app, ["qc", str(project)])
     assert res.exit_code == 1 and "needs a 'cif_path' column" in res.output
     assert not (work / "02_qc.csv").exists()
+
+
+def test_describe_command(project):
+    work = project.parent / "work"
+    early = runner.invoke(cli.app, ["describe", str(project)])
+    assert early.exit_code == 1 and "run 'mofsift qc" in early.output
+    assert runner.invoke(cli.app, ["generate", str(project), "-q"]).exit_code == 0
+    assert runner.invoke(cli.app, ["qc", str(project)]).exit_code == 0
+    res = runner.invoke(cli.app, ["describe", str(project)])
+    assert res.exit_code == 0, res.output  # missing optional tools are not an error
+    assert "describe.xtb: 3 row(s): 0 ok, 3 skipped, 0 failed" in res.output
+    assert "2 x did not pass qc" in res.output and "1 x tblite is not installed" in res.output
+    table = read_table(work / "03_describe.csv").set_index("name")
+    assert table.loc["good", "c_fraction"] == 0.2 and table["xtb_gap"].isna().all()
+    assert table.loc["good", "describe_xtb_skip_reason"].startswith("tblite is not installed")
+    meta = json.loads((work / "03_describe.meta.json").read_text(encoding="utf-8"))
+    assert meta["details"]["substages"]["geometry"]["not_run_because"].startswith("pyzeo is not installed")
+    log = (work / "run.log").read_text(encoding="utf-8")
+    assert "describe.xtb: 0 ok, 3 skipped, 0 failed" in log and "2 x did not pass qc" in log
+    assert "generate: 3 rows, 3 ok" in log and "qc: 3 rows" in log
+
+
+def test_describe_blocks_and_bad_options(project):
+    work = project.parent / "work"
+    runner.invoke(cli.app, ["generate", str(project), "-q"])
+    runner.invoke(cli.app, ["qc", str(project)])
+    block = runner.invoke(cli.app, ["describe", str(project), "--block", "1/2", "--only", "xtb"])
+    assert block.exit_code == 0 and "block 1/2 stored" in block.output
+    assert not (work / "03_describe.csv").exists()  # a block never writes the table
+    for options in (["--block", "3/2"], ["--only", "zeo"]):
+        res = runner.invoke(cli.app, ["describe", str(project), *options])
+        assert res.exit_code == 2
+
+
+def test_a_tool_declared_mandatory_stops_describe(project):
+    data = yaml.safe_load(project.read_text(encoding="utf-8"))
+    data["describe"] = {"xtb": {"enabled": True, "on_missing": "error"}}
+    project.write_text(yaml.safe_dump(data), encoding="utf-8")
+    runner.invoke(cli.app, ["generate", str(project), "-q"])
+    runner.invoke(cli.app, ["qc", str(project)])
+    res = runner.invoke(cli.app, ["describe", str(project)])
+    assert res.exit_code == 1 and "describe.xtb cannot run: tblite is not installed" in res.output
+    assert not (project.parent / "work" / "03_describe.csv").exists()

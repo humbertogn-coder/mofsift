@@ -157,7 +157,16 @@ folder). Save it as `work/01_generate.csv` and run `mofsift qc config.yaml`.
 
 `mofsift generate` reuses a structure when both its CIF and its `.build.json` exist in the work
 folder; `--force` builds everything again. `mofsift qc` always recomputes (it takes milliseconds
-per structure). The same config gives byte-identical tables and CIFs on every run.
+per structure). In one software environment the same config gives byte-identical tables and CIFs
+on every run.
+
+Between environments the record IDs are always the same, but the coordinates need not be. The
+topology does not fix how a linear linker is turned about its own axis, and PORMAKE's choice can
+change with the versions of the numerical libraries it uses (we have seen a phenyl ring of the
+same candidate turned differently under two sets of library versions, which changed the cavity
+diameter by 0.5 A). So build the structures once and carry the `work/` folder to wherever the
+later stages run, rather than generating again on each machine. `work/01_generate.meta.json`
+records the versions of PORMAKE, jax, SciPy and NumPy that were used.
 
 The checks and their default thresholds derive from `mofal.qc` in
 [MOF_3D_Generator](https://github.com/humbertogn-coder/MOF_3D_Generator) (MIT).

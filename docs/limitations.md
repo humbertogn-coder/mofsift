@@ -34,9 +34,19 @@ Read this before using any number produced with mofsift.
 - `linker_smiles` is known only for linkers given as SMILES, not for PORMAKE's bundled edges.
 - Every edge type of a topology receives the same edge block. Mixed-linker frameworks cannot be
   declared yet.
+- The orientation of a linear linker about its own axis is not determined by the topology. PORMAKE
+  picks one, and the pick can differ between versions of its numerical libraries, so the same
+  record ID can have different coordinates on two machines. Generate once and reuse the files.
 - A node is only placed on a vertex with the same number of connection points. The shape can
   still be wrong (a square node on a tetrahedral vertex); that is what `node_rmsd` and
   `qc.max_node_rmsd` are for.
+
+## Pore geometry
+
+- Zeo++ treats the framework as rigid hard spheres. The numbers describe the generated geometry,
+  which is not relaxed.
+- Accessible surface and volume depend on the probe radius; compare values only at the same one.
+- With `high_accuracy: OCC` Zeo++ ends on some structures; those rows are `failed`, not estimated.
 
 ## Electronic descriptors
 
@@ -46,6 +56,11 @@ Read this before using any number produced with mofsift.
   chemistry. For open-shell transition-metal frameworks, which are often the low-gap candidates,
   treat them as unvalidated. Check the proxy against a reference method on your own chemical space
   before relying on it.
+- The xTB calculation is spin-restricted with a fixed number of unpaired electrons, chosen by a
+  rule of thumb for Mn, Fe, Co, Ni and Cu. For a structure with unpaired electrons `xtb_gap` is
+  the distance from the doubly occupied to the singly occupied levels, not a band gap in the usual
+  sense (see [describe.md](describe.md#xtb-tblite)).
+- Only the Gamma point of the given cell is sampled. For small cells that is a coarse sampling.
 - A finite cluster cut from a framework is a different system. Keep `periodic: true`.
 - Semi-local DFT (PBE) underestimates band gaps. A low PBE-level gap is a screening descriptor,
   not evidence of a low experimental gap.

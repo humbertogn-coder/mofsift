@@ -34,18 +34,24 @@ qc:                          # built-in structural checks; distances in angstrom
   max_node_rmsd: 0.30        # node-to-vertex misfit reported by PORMAKE; null = do not check
 
 describe:
+  only_qc_passed: true       # pore geometry and xTB only for structures that passed qc
   composition: true          # composition statistics (always available)
-  geometry:                  # pore geometry from Zeo++
-    enabled: auto            # auto = run if the tool is installed, else skip and record why
+  geometry:                  # pore diameters, accessible surface and volume from Zeo++
+    enabled: auto            # auto = run if the tool is installed, else skip and say so
     tool: pyzeo              # pyzeo (pip) | zeopp (the 'network' binary)
-    probe_radius: 1.86
-    high_accuracy: true
+    probe_radius: 1.86       # angstrom
+    high_accuracy: OCC       # Zeo++ -ha setting: OCC | DEF (much slower) | false
+    timeout_minutes: null    # per structure
     on_missing: skip         # used when enabled: true and the tool is missing: skip | error
-  xtb:                       # semi-empirical gap and band-edge proxies (tblite)
+  xtb:                       # gap and frontier levels from periodic GFN-xTB (tblite)
     enabled: auto
     method: GFN1-xTB         # GFN1-xTB | GFN2-xTB
     periodic: true           # keep true for frameworks
     max_atoms: 300           # larger structures are skipped, not truncated
+    spin: high_spin          # high_spin (rule of thumb for Mn-Cu) | low_spin
+    electronic_temperature: 500.0   # kelvin
+    max_iterations: 500
+    timeout_minutes: null    # per structure
     on_missing: skip
 
 score:                       # synthetic-accessibility components, reported separately

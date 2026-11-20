@@ -1,7 +1,7 @@
 """Command-line interface.
 
-This version provides ``init``, ``doctor``, ``generate``, ``qc`` and ``run``. The other
-commands (describe, score, export, merge, validate) are added as each stage is implemented.
+This version provides ``init``, ``doctor``, ``generate``, ``qc``, ``describe`` and ``run``.
+The other commands (score, export, merge, validate) are added as each stage is implemented.
 
 Exit codes: 0 = done; 1 = a stage could not run; 2 = the config is invalid.
 """
@@ -17,11 +17,20 @@ import typer
 
 from mofsift import __version__
 from mofsift.config import Config, ConfigError, load_config
+from mofsift.describe import SUBSTAGES, parse_block, parse_only
 from mofsift.generate import GenerateError
 from mofsift.generate import preview as preview_generate
 from mofsift.generate.pormake_adapter import PormakeMissingError
 from mofsift.plan import StagePlan, plan_stages
-from mofsift.runner import IMPLEMENTED, Run, RunnerError, StageOutcome, run_generate, run_qc
+from mofsift.runner import (
+    IMPLEMENTED,
+    Run,
+    RunnerError,
+    StageOutcome,
+    run_describe,
+    run_generate,
+    run_qc,
+)
 from mofsift.templates import EXAMPLE_CONFIG
 from mofsift.tools import ToolStatus, default_tools
 
@@ -150,7 +159,7 @@ def doctor(
                     typer.echo(f"  note: {note}")
                 typer.echo("")
                 typer.echo(
-                    f"Note: this version of mofsift runs {' and '.join(IMPLEMENTED)}. "
+                    f"Note: this version of mofsift runs {', '.join(IMPLEMENTED)}. "
                     "For the other stages the plan shows what they will do once they are implemented."
                 )
         if not core_ok:
@@ -246,6 +255,52 @@ def _do_qc(run_: Run) -> StageOutcome:
     return outcome
 
 
+def _describe_progress(quiet: bool):
+    if quiet:
+        return None
+
+    def show(substage: str, pos: int, total: int, name: str, status: str, detail: str | None) -> None:
+        typer.echo(f"  {substage} [{pos}/{total}] {name}: {status}" + (f" ({detail})" if detail else ""))
+
+    return show
+
+
+def _do_describe(run_: Run, only: tuple[str, ...], block: tuple[int, int] | None, force: bool, quiet: bool):
+    available = {t.name: t.check()[0] for t in default_tools(run_.cfg.tools)}
+    try:
+        outcome = run_describe(
+            run_, available, only=only, block=block, force=force, progress=_describe_progress(quiet)
+        )
+    except RunnerError as err:
+        typer.echo(f"describe cannot run: {err}", err=True)
+        raise typer.Exit(code=1) from err
+    n = len(outcome.table)
+    for name, rep in outcome.details["substages"].items():
+        c = rep["status_counts"]
+        line = f"describe.{name}: {n} row(s): {c['ok']} ok, {c['skipped']} skipped, {c['failed']} failed"
+        if name != "composition" and (rep["computed"] or rep["from_cache"]):
+            line += f" (computed {rep['computed']}, reused {rep['from_cache']})"
+        typer.echo(line)
+        for reason, count in rep["reasons"].items():
+            typer.echo(f"    {count} x {reason}")
+    if outcome.written:
+        typer.echo(f"  table: {outcome.path}")
+    else:
+        typer.echo(
+            f"  block {outcome.details['block']} stored; when every block is done, run "
+            f"'mofsift describe {run_.config_path}' once more to write the table"
+        )
+    for warning in outcome.warnings:
+        typer.echo("", err=True)
+        typer.echo(f"WARNING: {warning}", err=True)
+        typer.echo(
+            "         Its columns are empty. Pore geometry and xTB are the main descriptors of mofsift;\n"
+            "         see docs/install.md (on Windows they run under WSL, or on a cluster).",
+            err=True,
+        )
+    return outcome
+
+
 _CONFIG_ARG = typer.Argument(..., help="Config file (see 'mofsift init').")
 _QUIET_OPT = typer.Option(False, "--quiet", "-q", help="Do not print one line per structure.")
 _FORCE_OPT = typer.Option(False, "--force", help="Build every structure again instead of reusing files.")
@@ -263,12 +318,36 @@ def qc(config: Path = _CONFIG_ARG) -> None:
     _do_qc(_load_run(config))
 
 
+@app.command(name="describe")
+def describe_command(
+    config: Path = _CONFIG_ARG,
+    only: str = typer.Option(
+        None, "--only", help=f"Compute only these sub-stages, comma separated: {', '.join(SUBSTAGES)}."
+    ),
+    block: str = typer.Option(
+        None,
+        "--block",
+        help="I/N: compute only block I of N (for cluster job arrays). The table is not written.",
+    ),
+    force: bool = typer.Option(False, "--force", help="Compute again instead of reusing stored results."),
+    quiet: bool = _QUIET_OPT,
+) -> None:
+    """Add composition, pore geometry (Zeo++) and xTB descriptors."""
+    try:
+        chosen, part = parse_only(only), parse_block(block)
+    except ValueError as err:
+        typer.echo(str(err), err=True)
+        raise typer.Exit(code=2) from err
+    _do_describe(_load_run(config), chosen, part, force, quiet)
+
+
 @app.command(name="run")
 def run_all(config: Path = _CONFIG_ARG, force: bool = _FORCE_OPT, quiet: bool = _QUIET_OPT) -> None:
     """Run every stage that this version implements, in order."""
     run_ = _load_run(config)
     _do_generate(run_, force, quiet)
     _do_qc(run_)
+    _do_describe(run_, SUBSTAGES, None, False, quiet)
     later = [p.stage for p in plan_stages(run_.cfg, {}) if p.stage.split(".")[0] not in IMPLEMENTED]
     typer.echo(f"Not implemented in this version, so not run: {', '.join(later)}")
 

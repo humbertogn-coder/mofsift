@@ -32,6 +32,12 @@
         "geometry": {
           "$ref": "#/$defs/GeometryConfig"
         },
+        "only_qc_passed": {
+          "default": true,
+          "description": "Run pore geometry and xTB only on structures that passed qc. Set to false to run them on every structure.",
+          "title": "Only Qc Passed",
+          "type": "boolean"
+        },
         "xtb": {
           "$ref": "#/$defs/XtbConfig"
         }
@@ -179,9 +185,14 @@
           "title": "Enabled"
         },
         "high_accuracy": {
-          "default": true,
-          "title": "High Accuracy",
-          "type": "boolean"
+          "default": "OCC",
+          "description": "Zeo++ high-accuracy Voronoi decomposition (-ha). OCC is the faster setting, DEF the most thorough and much slower on large cells, false turns it off.",
+          "enum": [
+            false,
+            "OCC",
+            "DEF"
+          ],
+          "title": "High Accuracy"
         },
         "on_missing": {
           "default": "skip",
@@ -199,6 +210,20 @@
           "exclusiveMinimum": 0,
           "title": "Probe Radius",
           "type": "number"
+        },
+        "timeout_minutes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stop a structure that takes longer than this and record it as failed.",
+          "title": "Timeout Minutes"
         },
         "tool": {
           "default": "pyzeo",
@@ -410,6 +435,13 @@
       "additionalProperties": false,
       "description": "Semi-empirical electronic proxies (band gap, band edges) from tblite.",
       "properties": {
+        "electronic_temperature": {
+          "default": 500.0,
+          "description": "Electronic temperature in kelvin.",
+          "exclusiveMinimum": 0,
+          "title": "Electronic Temperature",
+          "type": "number"
+        },
         "enabled": {
           "anyOf": [
             {
@@ -428,6 +460,13 @@
           "description": "Structures above this size are skipped, not truncated.",
           "exclusiveMinimum": 0,
           "title": "Max Atoms",
+          "type": "integer"
+        },
+        "max_iterations": {
+          "default": 500,
+          "description": "Maximum number of SCF iterations.",
+          "minimum": 1,
+          "title": "Max Iterations",
           "type": "integer"
         },
         "method": {
@@ -453,6 +492,30 @@
           "description": "Keep true for frameworks: a finite cluster is a different system.",
           "title": "Periodic",
           "type": "boolean"
+        },
+        "spin": {
+          "default": "high_spin",
+          "description": "Number of unpaired electrons. high_spin: rule of thumb (M(II) high-spin count for Mn, Fe, Co, Ni, Cu). low_spin: none, or one when the electron count is odd.",
+          "enum": [
+            "high_spin",
+            "low_spin"
+          ],
+          "title": "Spin",
+          "type": "string"
+        },
+        "timeout_minutes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stop a structure that takes longer than this and record it as failed.",
+          "title": "Timeout Minutes"
         }
       },
       "title": "XtbConfig",

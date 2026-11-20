@@ -13,8 +13,9 @@ config.yaml -> generate -> qc -> describe -> score -> filter -> export -> viewer
 Most open MOF workflows target gas adsorption. mofsift targets **electronic properties**
 (band gap and related proxies).
 
-> **Status: pre-alpha, private repository.** This version runs the first two stages,
-> `generate` and `qc`. The stages after them are not implemented yet (see [Roadmap](#roadmap)).
+> **Status: pre-alpha, private repository.** This version runs `generate`, `qc` and `describe`
+> (composition, pore geometry, xTB). Scoring and export are not implemented yet
+> (see [Roadmap](#roadmap)).
 
 ## Read this first
 
@@ -57,7 +58,7 @@ run the geometry and xTB stages under WSL or on a cluster. Conda users: `environ
 ```bash
 mofsift init                  # writes a commented example config: mofsift.yaml
 mofsift doctor mofsift.yaml   # tools found, config valid, how many candidates, which stages run
-mofsift run mofsift.yaml      # generate + qc (the stages implemented so far)
+mofsift run mofsift.yaml      # generate + qc + describe (the stages implemented so far)
 ```
 
 The example config assembles two IRMOF-type frameworks with PORMAKE (Zn4O node on the `pcu` net
@@ -67,14 +68,28 @@ with BDC and BPDC) and checks them; it takes a few seconds. The result is in `wo
 work/
   01_generate.csv        one row per candidate: id, blocks, formula, path of the CIF, status
   02_qc.csv              the same rows plus the check results and qc_pass
+  03_describe.csv        the same rows plus composition, pore geometry and xTB columns
+  describe/              one stored result per structure and sub-stage (reused on later runs)
+  run.log                what ran, what was skipped, and why
   *.meta.json            what produced each table (versions, config hash, counts)
   structures/<id>.cif    one CIF per structure
   structures/<id>.build.json   bond list and node misfit of structures assembled by PORMAKE
   blocks/<name>.xyz      building blocks made from SMILES linkers, in PORMAKE's format
 ```
 
-Stages can also be run one at a time (`mofsift generate`, then `mofsift qc`). Structures that
-already exist in the work folder are reused; `--force` builds them again.
+Stages can also be run one at a time (`mofsift generate`, `mofsift qc`, `mofsift describe`).
+Structures and descriptor results that already exist in the work folder are reused; `--force`
+computes them again.
+
+### Descriptors
+
+`mofsift describe` adds composition descriptors, pore geometry from Zeo++ (LCD, PLD, accessible
+surface and volume) and periodic GFN-xTB levels and gap. By default only structures that passed
+qc get the last two. Every result is stored per structure, so an interrupted run continues, and
+a table can be split over cluster jobs (`--block 3/20`) and assembled afterwards, even on a
+machine without the tools. If pyzeo or tblite is missing the stage is skipped with a warning.
+Columns, settings and what the xTB numbers mean: [docs/describe.md](docs/describe.md).
+Installing the tools (Linux, Windows with WSL, clusters): [docs/install.md](docs/install.md).
 
 ### Linkers from SMILES
 
@@ -125,7 +140,9 @@ recorded. Set `enabled: true` together with `on_missing: error` to make a tool m
 - **Every stage only adds columns** and writes `<stage>_status` and `<stage>_skip_reason`.
   Stages never drop rows; filtering is a separate, explicit step.
 - **No silent fallbacks.** A value that was not computed is missing, never a default number.
-- **Deterministic.** The same config and seed give the same table and the same record IDs.
+- **Deterministic.** The same config and seed give the same record IDs everywhere, and the same
+  tables in the same software environment (see the note on coordinates in
+  [docs/generate-and-qc.md](docs/generate-and-qc.md#reruns)).
 - **Unknown config keys are errors**, with a suggestion when the key looks like a typo.
 - **Filters cannot run code.** Only comparisons, `and`/`or`/`not`, arithmetic and `in` are allowed.
 
@@ -135,8 +152,8 @@ recorded. Set `enabled: true` together with `on_missing: error` to make a tool m
 |---|---|---|
 | 1 | Skeleton: install, `init`, `doctor`, config validation, CI | done locally; CI to be confirmed on the first push |
 | 2 | Generate (PORMAKE blocks, linkers from SMILES, or existing CIFs) + QC | done locally |
-| 3 | Describe: composition, pore geometry (pyzeo), xTB (tblite) | next |
-| 4 | Score: linker and precedent components, with a published validation benchmark | planned |
+| 3 | Describe: composition, pore geometry (pyzeo), xTB (tblite) | done locally |
+| 4 | Score: linker and precedent components, with a published validation benchmark | next |
 | 5 | Export: table + viewer bundle + manifest; `merge`; `validate` | planned |
 | 6 | Viewer support for generic bundles | planned |
 | 7 | Docs, tutorial, release preparation | planned |

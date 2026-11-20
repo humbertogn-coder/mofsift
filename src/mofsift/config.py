@@ -155,7 +155,14 @@ class GeometryConfig(_Model):
         "pyzeo", description="'pyzeo' = Python bindings (pip); 'zeopp' = the 'network' binary."
     )
     probe_radius: float = Field(1.86, gt=0, description="Probe radius in angstrom for accessible properties.")
-    high_accuracy: bool = True
+    high_accuracy: Literal[False, "OCC", "DEF"] = Field(
+        "OCC",
+        description="Zeo++ high-accuracy Voronoi decomposition (-ha). OCC is the faster setting, DEF the "
+        "most thorough and much slower on large cells, false turns it off.",
+    )
+    timeout_minutes: float | None = Field(
+        None, gt=0, description="Stop a structure that takes longer than this and record it as failed."
+    )
     on_missing: Literal["skip", "error"] = Field(
         "skip", description="What to do when enabled is true and the tool is not installed."
     )
@@ -170,10 +177,25 @@ class XtbConfig(_Model):
         True, description="Keep true for frameworks: a finite cluster is a different system."
     )
     max_atoms: int = Field(300, gt=0, description="Structures above this size are skipped, not truncated.")
+    spin: Literal["high_spin", "low_spin"] = Field(
+        "high_spin",
+        description="Number of unpaired electrons. high_spin: rule of thumb (M(II) high-spin count for "
+        "Mn, Fe, Co, Ni, Cu). low_spin: none, or one when the electron count is odd.",
+    )
+    electronic_temperature: float = Field(500.0, gt=0, description="Electronic temperature in kelvin.")
+    max_iterations: int = Field(500, ge=1, description="Maximum number of SCF iterations.")
+    timeout_minutes: float | None = Field(
+        None, gt=0, description="Stop a structure that takes longer than this and record it as failed."
+    )
     on_missing: Literal["skip", "error"] = "skip"
 
 
 class DescribeConfig(_Model):
+    only_qc_passed: bool = Field(
+        True,
+        description="Run pore geometry and xTB only on structures that passed qc. Set to false to run "
+        "them on every structure.",
+    )
     composition: bool = Field(True, description="Composition statistics (always available).")
     geometry: GeometryConfig = Field(default_factory=GeometryConfig)
     xtb: XtbConfig = Field(default_factory=XtbConfig)

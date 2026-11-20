@@ -5,6 +5,21 @@ All notable changes are listed here. The format follows Keep a Changelog; versio
 ## [Unreleased]
 
 ### Added
+- `describe` stage with three sub-stages, each with its own status columns: composition
+  descriptors (no extra tool), pore geometry from Zeo++ (pyzeo, or the `network` binary) and
+  periodic GFN-xTB gap and frontier levels (tblite).
+- Geometry and xTB results are stored per structure and reused; failures are stored with their
+  reason. Each structure is computed in its own process, so a tool that ends the process costs
+  one row.
+- `mofsift describe CONFIG [--only ...] [--block I/N] [--force]`; `--block` is for cluster job
+  arrays, and the table can be assembled later on a machine without the tools.
+- By default geometry and xTB run only on structures that passed qc (`describe.only_qc_passed`).
+- A visible warning when geometry or xTB cannot run because the tool is missing.
+- `work/run.log`: what ran, what was skipped and why.
+- New config keys: `describe.only_qc_passed`; `describe.geometry.timeout_minutes`;
+  `describe.xtb.spin`, `electronic_temperature`, `max_iterations`, `timeout_minutes`.
+- Docs: `docs/describe.md`, `docs/install.md` (Linux, Windows with WSL, Slurm clusters); a Slurm
+  job-array template in `examples/slurm/`.
 - `generate` stage. `source: pormake` enumerates topology x node x edge combinations (nodes are
   matched to vertices by coordination number; `edges: []` connects nodes directly), builds them
   with PORMAKE and records failures and oversized candidates instead of stopping. `source: cifs`
@@ -24,6 +39,7 @@ All notable changes are listed here. The format follows Keep a Changelog; versio
 - CI: a job that installs PORMAKE and runs the tests marked `external`.
 
 ### Changed
+- `describe.geometry.high_accuracy` takes `OCC` (default), `DEF` or `false` instead of true/false.
 - `generate.edges` may be empty.
 
 ### Fixed
