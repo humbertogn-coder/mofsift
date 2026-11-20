@@ -13,12 +13,14 @@ from __future__ import annotations
 
 import subprocess
 import tempfile
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
 from mofsift.describe.isolate import WorkerError, run_worker
 
 COLUMNS = {
+    "zeo_high_accuracy": "string",
     "lcd": "Float64",
     "pld": "Float64",
     "lcd_free_path": "Float64",
@@ -31,14 +33,53 @@ SURFACE_SAMPLES = 2000  # Monte Carlo samples per atom
 VOLUME_SAMPLES = 50000  # Monte Carlo samples per cell
 
 
-def settings(probe_radius: float, high_accuracy: str | bool) -> dict[str, Any]:
+ACCURACY_LABEL = {"OCC": "OCC", "DEF": "DEF", False: "off"}
+"""How a ``high_accuracy`` setting is written in the ``zeo_high_accuracy`` column."""
+
+
+def settings(
+    probe_radius: float, high_accuracy: str | bool, fallback: Sequence[str | bool] = ()
+) -> dict[str, Any]:
     """Everything that changes the numbers; part of the cache key."""
+    first = high_accuracy if high_accuracy else False
     return {
         "probe_radius": float(probe_radius),
-        "high_accuracy": high_accuracy if high_accuracy else False,
+        "high_accuracy": first,
+        "fallback": [f if f else False for f in fallback if (f if f else False) != first],
         "surface_samples": SURFACE_SAMPLES,
         "volume_samples": VOLUME_SAMPLES,
     }
+
+
+def with_fallback(compute: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
+    """Wrap a backend so that it retries with the fallback settings and records which one worked.
+
+    Zeo++ ends on some structures with one accuracy setting and not with another. The result
+    always carries ``zeo_high_accuracy``, the setting that produced the numbers. When every
+    setting fails, the error names them all and keeps what the first attempt produced.
+    """
+
+    def compute_with_fallback(
+        cif: Path, options: dict[str, Any], timeout: float | None = None
+    ) -> dict[str, Any]:
+        attempts = [options["high_accuracy"], *options.get("fallback", [])]
+        first_error: WorkerError | None = None
+        for accuracy in attempts:
+            try:
+                values = compute(cif, {**options, "high_accuracy": accuracy}, timeout)
+            except WorkerError as err:
+                first_error = first_error or err
+                continue
+            return {**values, "zeo_high_accuracy": ACCURACY_LABEL[accuracy]}
+        assert first_error is not None
+        reason = first_error.reason
+        if len(attempts) > 1:
+            tried = ", ".join(ACCURACY_LABEL[a] for a in attempts[1:])
+            reason += f"; no result with {tried} either"
+        partial = {**first_error.partial, "zeo_high_accuracy": ACCURACY_LABEL[attempts[0]]}
+        raise WorkerError(reason, partial)
+
+    return compute_with_fallback
 
 
 def parse_res(text: str) -> dict[str, float]:

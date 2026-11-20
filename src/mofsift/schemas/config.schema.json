@@ -184,6 +184,18 @@
           "default": "auto",
           "title": "Enabled"
         },
+        "fallback": {
+          "description": "Settings tried in this order when Zeo++ stops on a structure with high_accuracy. The column zeo_high_accuracy records which setting produced each row. [] = do not retry.",
+          "items": {
+            "enum": [
+              false,
+              "OCC",
+              "DEF"
+            ]
+          },
+          "title": "Fallback",
+          "type": "array"
+        },
         "high_accuracy": {
           "default": "OCC",
           "description": "Zeo++ high-accuracy Voronoi decomposition (-ha). OCC is the faster setting, DEF the most thorough and much slower on large cells, false turns it off.",
@@ -222,7 +234,7 @@
             }
           ],
           "default": null,
-          "description": "Stop a structure that takes longer than this and record it as failed.",
+          "description": "Stop an attempt that takes longer than this; the next setting is then tried.",
           "title": "Timeout Minutes"
         },
         "tool": {

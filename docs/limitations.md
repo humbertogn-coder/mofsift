@@ -46,7 +46,9 @@ Read this before using any number produced with mofsift.
 - Zeo++ treats the framework as rigid hard spheres. The numbers describe the generated geometry,
   which is not relaxed.
 - Accessible surface and volume depend on the probe radius; compare values only at the same one.
-- With `high_accuracy: OCC` Zeo++ ends on some structures; those rows are `failed`, not estimated.
+- With `high_accuracy: OCC` Zeo++ ends on some structures. They are computed with the next setting
+  in `fallback`, so one table can contain rows from different accuracy settings; the column
+  `zeo_high_accuracy` says which. The settings can differ by a few tenths of an angstrom.
 
 ## Electronic descriptors
 

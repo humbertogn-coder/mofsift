@@ -41,6 +41,7 @@ describe:
     tool: pyzeo              # pyzeo (pip) | zeopp (the 'network' binary)
     probe_radius: 1.86       # angstrom
     high_accuracy: OCC       # Zeo++ -ha setting: OCC | DEF (much slower) | false
+    fallback: [DEF, false]   # tried in this order if Zeo++ stops; zeo_high_accuracy says which was used
     timeout_minutes: null    # per structure
     on_missing: skip         # used when enabled: true and the tool is missing: skip | error
   xtb:                       # gap and frontier levels from periodic GFN-xTB (tblite)

@@ -82,6 +82,7 @@ At and Rn.
 
 | Column | Meaning |
 |---|---|
+| `zeo_high_accuracy` | Zeo++ accuracy setting that produced this row: `OCC`, `DEF` or `off` |
 | `lcd` | Largest cavity diameter: largest included sphere, in angstrom |
 | `pld` | Pore limiting diameter: largest free sphere, in angstrom |
 | `lcd_free_path` | Largest included sphere along the free-sphere path, in angstrom |
@@ -95,8 +96,11 @@ by ASE, so it sees the same atoms as the other stages. The numbers are reproduci
 fixed random sequence.
 
 `high_accuracy: DEF` is the most thorough setting and can take minutes for a few hundred atoms;
-`OCC` is roughly ten times faster. With `OCC` Zeo++ ends on some structures (the row is then
-`failed`); `DEF` or `false` usually handles them.
+`OCC` is roughly ten times faster. With `OCC` Zeo++ ends on some structures. Such a structure is
+tried again with the settings listed in `fallback` (default `[DEF, false]`, in that order), and
+`zeo_high_accuracy` records which setting produced the numbers of each row, so rows computed
+differently can be told apart or filtered (`zeo_high_accuracy == "OCC"`). If every setting fails
+the row is `failed` and the reason names what was tried. `fallback: []` turns the retry off.
 
 ### xTB (tblite)
 

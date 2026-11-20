@@ -101,7 +101,7 @@ def default_backends(cfg: Config) -> dict[str, Backend]:
         geometry_backend: Backend = partial(geometry.compute_zeopp, executable=executable)
     else:
         geometry_backend = geometry.compute_pyzeo
-    return {"geometry": geometry_backend, "xtb": xtb.compute_tblite}
+    return {"geometry": geometry.with_fallback(geometry_backend), "xtb": xtb.compute_tblite}
 
 
 def _value(row: pd.Series, column: str) -> Any:
@@ -245,7 +245,8 @@ def _slow_substage(
                 if stored["status"] != STATUS_OK:
                     out[r_col] = stored.get("reason") or "failed"
                 if progress is not None:
-                    detail = source if stored["status"] == STATUS_OK else out[r_col]
+                    took = f"{stored['seconds']:g} s" if source is None and "seconds" in stored else source
+                    detail = took if stored["status"] == STATUS_OK else out[r_col]
                     progress(name, position + 1, total, label, stored["status"], detail)
             elif plan.action != "run":
                 skip(plan.reason or "not available")
@@ -292,7 +293,12 @@ def run(
 
     geo, xt = desc.geometry, desc.xtb
     slow = (
-        ("geometry", geometry.settings(geo.probe_radius, geo.high_accuracy), geo.timeout_minutes, None),
+        (
+            "geometry",
+            geometry.settings(geo.probe_radius, geo.high_accuracy, geo.fallback),
+            geo.timeout_minutes,
+            None,
+        ),
         (
             "xtb",
             xtb.settings(xt.method, xt.periodic, xt.spin, xt.electronic_temperature, xt.max_iterations),

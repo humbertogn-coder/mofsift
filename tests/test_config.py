@@ -186,3 +186,15 @@ def test_linkers_section(minimal_dict):
         with pytest.raises(ConfigError, match=message):
             parse_config(minimal_dict)
     assert parse_config({**minimal_dict, "generate": {**minimal_dict["generate"], "linkers": None}})
+
+
+def test_geometry_fallback_settings(minimal_dict):
+    geo = parse_config(minimal_dict).describe.geometry
+    assert geo.high_accuracy == "OCC" and geo.fallback == ["DEF", False]
+    minimal_dict["describe"] = {"geometry": {"high_accuracy": False, "fallback": []}}
+    geo = parse_config(minimal_dict).describe.geometry
+    assert geo.high_accuracy is False and geo.fallback == []
+    for bad in ({"fallback": ["DEF", "DEF"]}, {"fallback": ["fast"]}, {"high_accuracy": True}):
+        minimal_dict["describe"] = {"geometry": bad}
+        with pytest.raises(ConfigError, match=r"describe\.geometry"):
+            parse_config(minimal_dict)

@@ -160,12 +160,24 @@ class GeometryConfig(_Model):
         description="Zeo++ high-accuracy Voronoi decomposition (-ha). OCC is the faster setting, DEF the "
         "most thorough and much slower on large cells, false turns it off.",
     )
+    fallback: list[Literal[False, "OCC", "DEF"]] = Field(
+        default_factory=lambda: ["DEF", False],
+        description="Settings tried in this order when Zeo++ stops on a structure with high_accuracy. "
+        "The column zeo_high_accuracy records which setting produced each row. [] = do not retry.",
+    )
     timeout_minutes: float | None = Field(
-        None, gt=0, description="Stop a structure that takes longer than this and record it as failed."
+        None, gt=0, description="Stop an attempt that takes longer than this; the next setting is then tried."
     )
     on_missing: Literal["skip", "error"] = Field(
         "skip", description="What to do when enabled is true and the tool is not installed."
     )
+
+    @field_validator("fallback")
+    @classmethod
+    def _fallback_unique(cls, v: list[Any]) -> list[Any]:
+        if len(set(map(str, v))) != len(v):
+            raise ValueError("each setting may appear once")
+        return v
 
 
 class XtbConfig(_Model):

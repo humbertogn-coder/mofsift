@@ -58,6 +58,44 @@ it ourselves.
 tblite uses OpenMP threads: give each task a few cores and set `OMP_NUM_THREADS` to that number.
 Zeo++ uses one core.
 
+### Grace (TAMU HPRC)
+
+Once, on a login node:
+
+```bash
+module purge
+module load GCCcore/13.2.0
+module load Python/3.11.5
+python -m venv /scratch/user/$USER/mofsift_env
+source /scratch/user/$USER/mofsift_env/bin/activate
+pip install --upgrade pip
+cd /scratch/user/$USER
+git clone https://github.com/humbertogn-coder/mofsift.git
+pip install -e "mofsift[all]"
+mofsift doctor
+```
+
+`mofsift doctor` must list pormake, pyzeo and tblite as `ok`. The pyzeo and tblite wheels need
+glibc 2.28 or newer; if pip reports that no matching distribution exists, the system is older
+than that and the two tools have to come from conda instead.
+
+Each time:
+
+```bash
+cd /scratch/user/$USER/my_project            # the folder with config.yaml
+module purge; module load GCCcore/13.2.0 Python/3.11.5
+source /scratch/user/$USER/mofsift_env/bin/activate
+mofsift generate config.yaml && mofsift qc config.yaml
+sbatch --account=YOUR_ACCOUNT --array=1-20 /scratch/user/$USER/mofsift/examples/slurm/grace_describe_array.slurm
+# when the array has finished:
+mofsift describe config.yaml
+```
+
+The template asks for the `medium` partition (24 h), one task with 8 cores and 32 GB. Choose the
+number of blocks so that one block finishes well inside the time limit: the output of each task
+shows how long each structure took. A task that is cut off loses nothing that it finished;
+submit the same array again and only the missing structures are computed.
+
 ## The Zeo++ binary instead of pyzeo
 
 Set `describe.geometry.tool: zeopp` to use the `network` executable

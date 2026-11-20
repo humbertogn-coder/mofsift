@@ -13,6 +13,14 @@ All notable changes are listed here. The format follows Keep a Changelog; versio
   one row.
 - `mofsift describe CONFIG [--only ...] [--block I/N] [--force]`; `--block` is for cluster job
   arrays, and the table can be assembled later on a machine without the tools.
+- When Zeo++ stops on a structure it is tried again with the settings in
+  `describe.geometry.fallback` (default DEF, then off); the column `zeo_high_accuracy` records
+  which setting produced each row.
+- Linker scores as functions (`mofsift.score.linker_scores`): SA score (RDKit), SCScore, size and
+  rotatable bonds. SCScore is not on PyPI, so its code (ported to current Python) and its original
+  weights are included under `src/mofsift/score/_scscore/` with their MIT licence. The score stage
+  that writes them to the table is not implemented yet.
+- `examples/slurm/grace_describe_array.slurm` and install steps for Grace (TAMU HPRC).
 - By default geometry and xTB run only on structures that passed qc (`describe.only_qc_passed`).
 - A visible warning when geometry or xTB cannot run because the tool is missing.
 - `work/run.log`: what ran, what was skipped and why.

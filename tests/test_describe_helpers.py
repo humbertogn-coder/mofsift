@@ -106,9 +106,44 @@ def test_zeopp_output_parsers():
     for parser in (geometry.parse_res, geometry.parse_surface, geometry.parse_volume):
         with pytest.raises(ValueError):
             parser("nothing useful")
-    assert set(geometry.parse_res(RES) | geometry.parse_surface(SA) | geometry.parse_volume(VOL)) == set(
-        geometry.COLUMNS
-    )
+    parsed = set(geometry.parse_res(RES) | geometry.parse_surface(SA) | geometry.parse_volume(VOL))
+    assert parsed == set(geometry.COLUMNS) - {"zeo_high_accuracy"}
+
+
+def test_fallback_settings_are_tried_in_order_and_the_one_that_worked_is_recorded():
+    def backend(fails_with):
+        seen = []
+
+        def compute(cif, options, timeout):
+            seen.append(options["high_accuracy"])
+            if options["high_accuracy"] in fails_with:
+                raise WorkerError(f"stopped with {options['high_accuracy']}", {"lcd": 1.0})
+            return {"lcd": 5.0}
+
+        return geometry.with_fallback(compute), seen
+
+    options = geometry.settings(1.86, "OCC", ["DEF", False])
+    assert options["fallback"] == ["DEF", False]
+    compute, seen = backend(fails_with=())
+    assert compute(None, options, None) == {"lcd": 5.0, "zeo_high_accuracy": "OCC"} and seen == ["OCC"]
+    compute, seen = backend(fails_with=("OCC",))
+    assert compute(None, options, None)["zeo_high_accuracy"] == "DEF" and seen == ["OCC", "DEF"]
+    compute, seen = backend(fails_with=("OCC", "DEF"))
+    assert compute(None, options, None)["zeo_high_accuracy"] == "off" and seen == ["OCC", "DEF", False]
+    compute, seen = backend(fails_with=("OCC", "DEF", False))
+    with pytest.raises(WorkerError) as err:
+        compute(None, options, None)
+    assert err.value.reason == "stopped with OCC; no result with DEF, off either"
+    assert err.value.partial == {"lcd": 1.0, "zeo_high_accuracy": "OCC"}
+    # no fallback configured: one attempt, the plain reason
+    compute, seen = backend(fails_with=("OCC",))
+    with pytest.raises(WorkerError, match=r"^stopped with OCC$"):
+        compute(None, geometry.settings(1.86, "OCC", []), None)
+    assert seen == ["OCC"]
+    # the first choice is not tried twice, and the fallback is part of what identifies a result
+    assert geometry.settings(1.86, "DEF", ["DEF", False])["fallback"] == [False]
+    assert geometry.settings(1.86, False, [False, "OCC"])["fallback"] == ["OCC"]
+    assert geometry.settings(1.86, "OCC", []) != geometry.settings(1.86, "OCC", ["DEF"])
 
 
 def _fake_network(folder, body: str):

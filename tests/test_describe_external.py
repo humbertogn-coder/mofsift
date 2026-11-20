@@ -95,6 +95,16 @@ def test_a_zeopp_crash_costs_one_row_not_the_run(tmp_path):
     )
     table = _describe(cfg, tmp_path).table.set_index("name")
     assert table.loc["pcu__N16__E14", "describe_geometry_status"] == "ok"
+    assert table.loc["pcu__N16__E14", "zeo_high_accuracy"] == "OCC"
+    # with the default fallback the structure is retried and the setting that worked is recorded
+    assert table.loc["pcu__N16__ndc", "describe_geometry_status"] == "ok"
+    assert table.loc["pcu__N16__ndc", "zeo_high_accuracy"] in ("OCC", "DEF", "off")
+    assert table.loc["pcu__N16__ndc", "lcd"] > 10
+    # without a fallback it is one failed row
+    cfg = parse_config(
+        {**cfg.model_dump(mode="json"), "describe": {"xtb": {"enabled": False}, "geometry": {"fallback": []}}}
+    )
+    table = _describe(cfg, tmp_path).table.set_index("name")
     status = table.loc["pcu__N16__ndc", "describe_geometry_status"]
     assert status in ("ok", "failed")  # depends on the Zeo++ build; either way the run finished
     if status == "failed":

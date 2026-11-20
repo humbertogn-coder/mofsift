@@ -180,3 +180,6 @@ MIT licence; see [LICENSE](LICENSE) and [CITATION.cff](CITATION.cff).
 
 mofsift builds on PORMAKE, Zeo++ (via pyzeo), tblite, RDKit, ASE and pymatgen. Please cite
 them when you use the corresponding stages.
+
+Included third-party code: SCScore (C. W. Coley et al., MIT licence), code and model weights, in
+`src/mofsift/score/_scscore/` with its licence and source.

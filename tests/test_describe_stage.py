@@ -16,6 +16,7 @@ from mofsift.plan import plan_stages
 ALL = {"pyzeo": True, "tblite": True, "pormake": True}
 NONE = {"pyzeo": False, "tblite": False, "pormake": True}
 GEO = {
+    "zeo_high_accuracy": "OCC",
     "lcd": 5.0,
     "pld": 4.0,
     "lcd_free_path": 5.0,
