@@ -68,7 +68,9 @@ def run_worker(module: str, payload: dict[str, Any], timeout: float | None = Non
     with tempfile.TemporaryDirectory(prefix="mofsift-worker-", ignore_cleanup_errors=True) as tmp:
         source, target = Path(tmp) / "input.json", Path(tmp) / "output.jsonl"
         source.write_text(json.dumps(payload), encoding="utf-8")
-        env = {**os.environ, "PYTHONWARNINGS": "ignore"}
+        # Unbuffered output: a worker that dies with os._exit or a signal still leaves
+        # its last messages in the pipe, so the crash reason can be reported.
+        env = {**os.environ, "PYTHONWARNINGS": "ignore", "PYTHONUNBUFFERED": "1"}
         try:
             proc = subprocess.run(
                 [sys.executable, "-m", module, str(source), str(target)],
