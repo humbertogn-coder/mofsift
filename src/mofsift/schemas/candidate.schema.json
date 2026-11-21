@@ -1,0 +1,642 @@
+{
+  "$id": "https://github.com/humbertogn-coder/mofsift/schemas/candidate.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": {
+    "type": [
+      "string",
+      "number",
+      "boolean",
+      "null"
+    ]
+  },
+  "description": "One candidate of a mofsift bundle. null means the value was not computed.",
+  "properties": {
+    "accessible_surface_m2_cm3": {
+      "description": "Surface accessible to the probe. Unit: m2/cm3.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "accessible_surface_m2_g": {
+      "description": "Surface accessible to the probe. Unit: m2/g.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "accessible_volume_cm3_g": {
+      "description": "Volume accessible to the centre of the probe. Unit: cm3/g.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "accessible_volume_fraction": {
+      "description": "Fraction of the cell volume accessible to the centre of the probe.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "c_fraction": {
+      "description": "C atoms as a fraction of all atoms.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cell_a": {
+      "description": "Cell length a. Unit: angstrom.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cell_alpha": {
+      "description": "Cell angle alpha. Unit: degree.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cell_b": {
+      "description": "Cell length b. Unit: angstrom.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cell_beta": {
+      "description": "Cell angle beta. Unit: degree.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cell_c": {
+      "description": "Cell length c. Unit: angstrom.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cell_gamma": {
+      "description": "Cell angle gamma. Unit: degree.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cif_path": {
+      "description": "Path of the structure file, relative to the folder that holds the table.",
+      "pattern": "^structures/[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\\.cif$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "density": {
+      "description": "Density from the cell and the atomic masses. Unit: g/cm3.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "describe_composition_skip_reason": {
+      "description": "Why, when the status is not ok.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "describe_composition_status": {
+      "description": "Whether the composition descriptors were computed: ok, skipped or failed.",
+      "enum": [
+        "ok",
+        "skipped",
+        "failed",
+        null
+      ]
+    },
+    "describe_geometry_skip_reason": {
+      "description": "Why, when the status is not ok.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "describe_geometry_status": {
+      "description": "Whether the pore geometry was computed: ok, skipped or failed.",
+      "enum": [
+        "ok",
+        "skipped",
+        "failed",
+        null
+      ]
+    },
+    "describe_xtb_skip_reason": {
+      "description": "Why, when the status is not ok.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "describe_xtb_status": {
+      "description": "Whether the xTB calculation ran: ok, skipped or failed.",
+      "enum": [
+        "ok",
+        "skipped",
+        "failed",
+        null
+      ]
+    },
+    "edges": {
+      "description": "Edge building blocks, + between several; empty without edges.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "expected_formula": {
+      "description": "Sum of the building blocks; empty for existing CIFs.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "filter_pass": {
+      "description": "The row satisfies every filter of the config. Empty when there are no filters.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "filter_rejected_by": {
+      "description": "The filters the row did not satisfy, with the missing columns when undecided.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "filter_skip_reason": {
+      "description": "Why, when the status is not ok.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "filter_status": {
+      "description": "Whether the filters were applied: ok, skipped or failed.",
+      "enum": [
+        "ok",
+        "skipped",
+        "failed",
+        null
+      ]
+    },
+    "formula": {
+      "description": "Formula of the unit cell, Hill order.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "generate_skip_reason": {
+      "description": "Why, when the status is not ok.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "generate_status": {
+      "description": "Whether the structure was built or read: ok, skipped or failed.",
+      "enum": [
+        "ok",
+        "skipped",
+        "failed",
+        null
+      ]
+    },
+    "h_fraction": {
+      "description": "H atoms as a fraction of all atoms.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "has_open_shell_3d_metal": {
+      "description": "The primary metal is Ti-Cu. A flag on the composition, not a computed spin state.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "heteroatom_fraction": {
+      "description": "N, O, S, F, Cl, Br and I atoms as a fraction of all atoms.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "id": {
+      "description": "Record ID; the key of the table. It depends only on what defines the candidate.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "lcd": {
+      "description": "Largest cavity diameter (largest included sphere). Unit: angstrom.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lcd_free_path": {
+      "description": "Largest included sphere along the free-sphere path. Unit: angstrom.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "linker_rotatable_bonds": {
+      "description": "Rotatable bonds of the linker. Smaller is better.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "linker_sa": {
+      "description": "SA score of the linker, 1 (easy) to 10 (hard). Smaller is better.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "linker_sc": {
+      "description": "SCScore of the linker, 1 (simple) to 5 (complex). Smaller is better.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "linker_size": {
+      "description": "Heavy atoms of the linker. Smaller is better.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "linker_smiles": {
+      "description": "Canonical SMILES of the linkers when they are known, ; between several.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "mean_atomic_number": {
+      "description": "Mean atomic number over all atoms.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "mean_electronegativity": {
+      "description": "Mean Pauling electronegativity over all atoms.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "metal_fraction": {
+      "description": "Metal atoms as a fraction of all atoms.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "metals": {
+      "description": "All metals present, + between them.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "n_atoms": {
+      "description": "Atoms in the unit cell.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "n_fraction": {
+      "description": "N atoms as a fraction of all atoms.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "n_metal_atoms": {
+      "description": "Metal atoms in the unit cell.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "n_transition_metal_atoms": {
+      "description": "d-block atoms in the unit cell.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "name": {
+      "description": "Readable label: topology__nodes__edges, or the file name.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "node_rmsd": {
+      "description": "Largest node-to-vertex misfit reported by PORMAKE. Unit: angstrom.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "nodes": {
+      "description": "Node building blocks, + between several.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "o_fraction": {
+      "description": "O atoms as a fraction of all atoms.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "pld": {
+      "description": "Pore limiting diameter (largest free sphere). Unit: angstrom.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "precedent_linker": {
+      "description": "Distinct synthesised MOFs in the reference with this linker. Larger is better.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "precedent_node": {
+      "description": "Distinct synthesised MOFs in the reference with this primary metal. Information only: it does not separate synthesised from hypothetical MOFs.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "precedent_pair": {
+      "description": "Distinct synthesised MOFs in the reference with this linker and metal. Larger is better.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "precedent_topology": {
+      "description": "Distinct synthesised MOFs in the reference with this topology. Larger is better.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "primary_metal": {
+      "description": "Most abundant metal (ties: alphabetical).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "qc_composition_ok": {
+      "description": "The formula equals the sum of the building blocks.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "qc_min_distance": {
+      "description": "Shortest interatomic distance. Unit: angstrom.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "qc_n_bad_c": {
+      "description": "C atoms with fewer than 2 or more than 4 non-metal neighbours.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "qc_n_bad_h": {
+      "description": "H atoms that do not have exactly one neighbour.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "qc_n_close_pairs": {
+      "description": "Pairs of atoms closer than qc.min_distance.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "qc_n_components": {
+      "description": "Connected components of the bond network.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "qc_n_isolated_atoms": {
+      "description": "Atoms without any bond.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "qc_n_nonbonded_contacts": {
+      "description": "Non-bonded pairs closer than allowed.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "qc_n_overlaps": {
+      "description": "Heavy-heavy or H-H pairs closer than qc.min_distance_heavy.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "qc_n_short_bonds": {
+      "description": "Compressed covalent bonds (reported, not a check).",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "qc_node_rmsd_ok": {
+      "description": "The node misfit is within qc.max_node_rmsd.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "qc_pass": {
+      "description": "No enabled structural check failed. Not a statement about stability or synthesis.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "qc_reasons": {
+      "description": "The failed checks, separated by ; .",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "qc_skip_reason": {
+      "description": "Why, when the status is not ok.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "qc_status": {
+      "description": "Whether the checks ran: ok, skipped or failed.",
+      "enum": [
+        "ok",
+        "skipped",
+        "failed",
+        null
+      ]
+    },
+    "score_aggregate": {
+      "description": "Weighted mean rank of the chosen components within one table, 0 (worst) to 1 (best). Not a probability, and not comparable between tables.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "score_notes": {
+      "description": "Why a component is empty for this row.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "score_skip_reason": {
+      "description": "Why, when the status is not ok.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "score_status": {
+      "description": "Whether at least one component was computed: ok, skipped or failed.",
+      "enum": [
+        "ok",
+        "skipped",
+        "failed",
+        null
+      ]
+    },
+    "source": {
+      "description": "Where the structure comes from: pormake or cifs.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_file": {
+      "description": "Original file inside cif_dir; empty for assembled structures.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "std_atomic_number": {
+      "description": "Spread of the atomic number over all atoms.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "std_electronegativity": {
+      "description": "Spread of the Pauling electronegativity over all atoms.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "topology": {
+      "description": "Net the structure was assembled on; empty for existing CIFs.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "volume": {
+      "description": "Cell volume. Unit: angstrom3.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "xtb_gap": {
+      "description": "xtb_lumo minus xtb_homo from periodic GFN-xTB. A proxy, not a DFT or measured band gap; comparable between rows only when xtb_unpaired_electrons is 0. Unit: eV.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "xtb_homo": {
+      "description": "Highest doubly occupied level. Unit: eV.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "xtb_lumo": {
+      "description": "Lowest level that is not doubly occupied. Unit: eV.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "xtb_unpaired_electrons": {
+      "description": "Unpaired electrons used in the calculation (a rule of thumb, not computed).",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "zeo_high_accuracy": {
+      "description": "Zeo++ accuracy setting that produced this row: OCC, DEF or off.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "mofsift candidate record",
+  "type": "object"
+}

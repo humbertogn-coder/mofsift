@@ -1,5 +1,6 @@
 # Six candidates from PORMAKE's bundled building blocks, on three nets.
-# Run:  mofsift run examples/pormake_small.yaml
+# Run:    mofsift run examples/pormake_small.yaml
+# Result: the bundle examples/export/pormake_small (check it: mofsift validate examples/export/pormake_small)
 project: pormake_small
 seed: 0
 workdir: work_pormake_small

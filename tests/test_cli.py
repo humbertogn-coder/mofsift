@@ -76,7 +76,8 @@ def test_doctor_with_config_all_tools(tmp_path, monkeypatch):
     assert res.exit_code == 0, res.output
     assert "valid (project demo_irmof" in res.stdout
     assert "2 candidate(s)" in res.stdout
-    assert "runs generate, qc, describe, score" in res.stdout  # no claim that the later stages exist
+    assert "1 expression(s)" in res.stdout  # the filter of the example config
+    assert "table (csv), records for a viewer, structure files" in res.stdout
 
 
 def test_doctor_reports_skips_as_success_and_blocked_generate_as_failure(tmp_path, monkeypatch):
@@ -122,7 +123,34 @@ def test_doctor_json_shape(monkeypatch):
     assert {"name", "tier", "available", "version", "hint"} <= set(payload["tools"][0])
 
 
-@pytest.mark.parametrize("command", ["export", "merge", "validate"])
-def test_unimplemented_stage_commands_are_not_exposed(command):
-    res = runner.invoke(cli.app, [command])
-    assert res.exit_code == 2 and "No such command" in res.output
+@pytest.mark.parametrize("command", ["filter", "export", "merge", "validate"])
+def test_every_stage_has_a_command(command):
+    res = runner.invoke(cli.app, [command, "--help"])
+    assert res.exit_code == 0 and "Usage" in res.output
+
+
+def test_doctor_catches_a_filter_on_a_column_no_stage_writes(tmp_path, monkeypatch):
+    monkeypatch.setattr(cli, "default_tools", _fake_tools(CORE | {"pormake"}))
+    cfg = tmp_path / "c.yaml"
+    cfg.write_text(
+        "project: t\ngenerate: {source: pormake, topologies: [pcu], nodes: [N16]}\n"
+        "filter: ['xtb_gapp < 1']\n",
+        encoding="utf-8",
+    )
+    res = runner.invoke(cli.app, ["doctor", str(cfg)])
+    assert res.exit_code == 1
+    assert "no stage writes the column 'xtb_gapp' (did you mean 'xtb_gap'?)" in res.output
+
+
+def test_doctor_says_when_parquet_cannot_be_written(tmp_path, monkeypatch):
+    monkeypatch.setattr(cli, "default_tools", _fake_tools(CORE | {"pormake"}))
+    cfg = tmp_path / "c.yaml"
+    cfg.write_text(
+        "project: t\ngenerate: {source: pormake, topologies: [pcu], nodes: [N16]}\n"
+        "export: {table_format: parquet}\n",
+        encoding="utf-8",
+    )
+    res = runner.invoke(cli.app, ["doctor", str(cfg), "--json"])
+    stages = {s["stage"]: s for s in json.loads(res.stdout)["config"]["stages"]}
+    assert res.exit_code == 1 and stages["export"]["action"] == "error"
+    assert "pyarrow" in stages["export"]["reason"]

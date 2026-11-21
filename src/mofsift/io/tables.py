@@ -22,6 +22,7 @@ STAGE_FILES: dict[str, str] = {
     "qc": "02_qc.csv",
     "describe": "03_describe.csv",
     "score": "04_score.csv",
+    "filter": "05_filter.csv",
 }
 """File name of each stage's output table, in pipeline order."""
 
@@ -104,7 +105,7 @@ def read_table(path: str | Path) -> pd.DataFrame:
     dtypes[ID_COLUMN] = "string"
     try:
         table = pd.read_csv(path, dtype=dtypes, keep_default_na=False, na_values=[""], encoding="utf-8")
-    except (ValueError, pd.errors.ParserError) as err:
+    except (ValueError, TypeError, OverflowError, pd.errors.ParserError) as err:
         raise TableError(f"{path}: cannot read the table ({err})") from err
     table = table.set_index(ID_COLUMN)
     _check_ids(table, str(path))

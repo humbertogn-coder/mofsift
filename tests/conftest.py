@@ -123,3 +123,37 @@ class FakeAdapter:
 @pytest.fixture
 def fake_adapter():
     return FakeAdapter()
+
+
+# ------------------------------------------------------------------ bundles
+@pytest.fixture
+def small_table(tmp_path):
+    """Three rows with typed columns and a structure file for two of them.
+
+    Returns ``(table, structure_files)`` as the export takes them.
+    """
+    import pandas as pd
+
+    from mofsift import runner  # noqa: F401  (importing the stages registers the column types)
+    from mofsift.io.tables import normalise
+
+    table = pd.DataFrame(
+        {
+            "name": ["first", "second", "third"],
+            "topology": ["pcu", "dia", pd.NA],
+            "n_atoms": [5, 10, pd.NA],
+            "cif_path": ["structures/a1.cif", "structures/b2.cif", pd.NA],
+            "generate_status": ["ok", "ok", "failed"],
+            "generate_skip_reason": [pd.NA, pd.NA, "cannot place the node"],
+            "qc_pass": [True, False, pd.NA],
+            "xtb_gap": [2.8622, 0.1, pd.NA],
+            "describe_xtb_status": ["ok", "ok", "skipped"],
+            "describe_xtb_skip_reason": [pd.NA, pd.NA, "no structure"],
+        },
+        index=pd.Index(["a1", "b2", "c3"], name="id"),
+    )
+    files = {
+        "a1": write_cif(tmp_path / "src" / "a1.cif", methane()),
+        "b2": write_cif(tmp_path / "src" / "b2.cif", methane(cell=12.0)),
+    }
+    return normalise(table), files

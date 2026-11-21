@@ -51,6 +51,10 @@ jobs:
           mofsift --version
           mofsift init ci-example.yaml
           mofsift doctor --json
+          mofsift filter --help
+          mofsift export --help
+          mofsift validate --help
+          mofsift merge --help
 
   external:
     name: tests with PORMAKE, pyzeo and tblite
@@ -70,6 +74,10 @@ jobs:
           mofsift doctor examples/pormake_small.yaml
           mofsift run examples/pormake_small.yaml
           mofsift run examples/linkers_from_smiles.yaml
+          mofsift validate examples/export/pormake_small
+          mofsift validate examples/export/linkers_from_smiles
+          mofsift merge examples/export/pormake_small examples/export/linkers_from_smiles --out examples/export/both --project both --on-conflict first
+          mofsift validate examples/export/both
 
   build:
     runs-on: ubuntu-24.04
@@ -85,5 +93,6 @@ jobs:
           python -m venv /tmp/wheel-env
           /tmp/wheel-env/bin/pip install dist/*.whl
           cd /tmp && /tmp/wheel-env/bin/mofsift init wheel-example.yaml && /tmp/wheel-env/bin/mofsift doctor --json
+          /tmp/wheel-env/bin/python -c "from mofsift.export.validate import packaged_schema as s; s('manifest'); s('candidate')"
 
 # Added later: a job with the Zeo++ binary from conda-forge, and a docs build.

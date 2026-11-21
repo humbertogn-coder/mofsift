@@ -70,13 +70,17 @@ score:                       # synthetic-accessibility components, reported sepa
     enabled: false
     weights: {}              # for example {linker_sc: 1, precedent_linker: 1}
 
-filter:                      # explicit row filters; rejected rows stay visible in the full table
-  - "qc_pass == True"
+filter:                      # a row is exported when every filter is true for it;
+  - "qc_pass == True"        # rejected rows stay in work/05_filter.csv with the reason
+  # - "xtb_gap < 1.5 and xtb_unpaired_electrons == 0"
+  # - "topology in ['pcu', 'dia']"
+  # - "lcd != None"          # == None / != None test for a value that was not computed
 
-export:
-  viewer_bundle: true
-  include_cifs: true
-  table_format: csv          # csv | parquet
+export:                      # the bundle: table + records for a viewer + structures + manifest
+  # out_dir: export/demo_irmof   # default: export/<project>, next to this file
+  viewer_bundle: true        # write candidates.json (the rows as JSON records)
+  include_cifs: true         # copy the structure file of every exported row
+  table_format: csv          # csv | parquet (parquet needs pyarrow)
 
 # tools:                     # explicit paths to external binaries (default: look on PATH)
 #   zeopp: /path/to/network

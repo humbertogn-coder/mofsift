@@ -23,7 +23,7 @@ def test_minimal_config_gets_documented_defaults(minimal_dict):
     assert (cfg.qc.min_distance, cfg.qc.min_distance_heavy) == (0.70, 1.00)
     assert cfg.describe.xtb.enabled == "auto" and cfg.describe.xtb.periodic is True
     assert cfg.score.strain.enabled is False and cfg.score.aggregate.enabled is False
-    assert cfg.filter == [] and cfg.export.table_format == "csv"
+    assert cfg.filter == [] and cfg.export.table_format == "csv" and cfg.export.out_dir is None
 
 
 def test_unknown_key_is_rejected_with_suggestion(minimal_dict):
@@ -198,3 +198,15 @@ def test_geometry_fallback_settings(minimal_dict):
         minimal_dict["describe"] = {"geometry": bad}
         with pytest.raises(ConfigError, match=r"describe\.geometry"):
             parse_config(minimal_dict)
+
+
+def test_export_folder_defaults_to_the_project_name(tmp_path, minimal_dict):
+    from mofsift.config import export_dir
+
+    cfg_file = tmp_path / "runs" / "c.yaml"
+    assert export_dir(cfg_file, parse_config(minimal_dict)) == (tmp_path / "runs" / "export" / "t").resolve()
+    minimal_dict["export"] = {"out_dir": "shared/bundle"}
+    assert (
+        export_dir(cfg_file, parse_config(minimal_dict))
+        == (tmp_path / "runs" / "shared" / "bundle").resolve()
+    )

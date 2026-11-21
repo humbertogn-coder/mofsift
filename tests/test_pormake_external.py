@@ -205,7 +205,7 @@ def test_command_line_run_is_quiet_and_leaves_no_log_file(tmp_path):
             text=True,
         ).stdout
     )
-    assert sorted(p.name for p in tmp_path.iterdir()) == ["mofsift.yaml", "work"]  # no runtime.log
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["export", "mofsift.yaml", "work"]  # no runtime.log
     table = read_table(tmp_path / "work" / "02_qc.csv")
     assert list(table["name"]) == ["pcu__N16__E14", "pcu__N16__E34"] and table["qc_pass"].all()
 

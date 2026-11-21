@@ -1,4 +1,4 @@
-# Everything (Linux): core + PORMAKE + pyzeo + tblite + scikit-learn, and the development tools.
+# Everything (Linux): core + PORMAKE + pyzeo + tblite + scikit-learn + pyarrow, and the development tools.
 name: mofsift
 channels: [conda-forge]
 dependencies:

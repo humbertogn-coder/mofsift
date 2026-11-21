@@ -2,34 +2,69 @@
 
 Each stage reads the table of the stage before it and writes its own, so a run can be
 stopped and resumed at any stage. Next to each table a small ``.meta.json`` records what
-produced it (version, config hash, tool versions, counts).
+produced it (version, config hash, tool versions, counts). The export reads these records
+to say in the manifest what produced the bundle, and to warn when a table is older than
+the table or the config it depends on.
 """
 
 from __future__ import annotations
 
+import hashlib
 import importlib.metadata
 import json
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 import pandas as pd
 
-from mofsift import __version__, describe, generate, qc, score
-from mofsift.config import Config, load_config, resolve_path
+from mofsift import __version__, describe, export, filtering, generate, qc, score
+from mofsift.config import Config, export_dir, load_config, resolve_path
+from mofsift.filters import FilterError
 from mofsift.io.tables import TableError, read_table, sha256_file, stage_table_path, write_table
 from mofsift.plan import plan_stages
 from mofsift.stages import status_counts
 
-IMPLEMENTED = ("generate", "qc", "describe", "score")
-RUN_LOG = "run.log"
+IMPLEMENTED = ("generate", "qc", "describe", "score", "filter", "export")
 """Stages that this version can run, in order."""
+TABLE_STAGES = ("generate", "qc", "describe", "score", "filter")
+"""The stages that write a working table, in order: each one reads the table before it."""
+RUN_LOG = "run.log"
+_STAGE_SECTIONS: dict[str, str] = {
+    "generate": "'seed' or 'generate'",
+    "qc": "'qc'",
+    "describe": "'describe' (or tools.zeopp)",
+    "score": "'score'",
+    "filter": "'filter'",
+}
+"""The part of the config each stage reads, as it is named in a warning."""
 
 
 class RunnerError(RuntimeError):
     """A stage cannot run (for example its input table does not exist yet)."""
+
+
+class InvalidFilterError(RunnerError):
+    """A filter of the config cannot be applied to the table (unknown column, wrong type)."""
+
+
+def stage_config_hash(cfg: Config, stage: str) -> str:
+    """SHA-256 of the part of the config that ``stage`` reads.
+
+    Changing a filter does not make the descriptors out of date; this hash says which
+    tables a change of the config does affect.
+    """
+    dump = cfg.model_dump(mode="json")
+    if stage == "generate":
+        part = {"seed": dump["seed"], "generate": dump["generate"]}
+    elif stage == "describe":
+        part = {"describe": dump["describe"], "tools.zeopp": dump["tools"]["zeopp"]}
+    else:
+        part = {stage: dump[stage]}
+    text = json.dumps(part, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 @dataclass
@@ -79,6 +114,7 @@ def _write_meta(run: Run, outcome: StageOutcome, tools: dict[str, str | None]) -
         "mofsift_version": __version__,
         "project": run.cfg.project,
         "config_hash": run.cfg.config_hash(),
+        "stage_config_hash": stage_config_hash(run.cfg, outcome.stage),
         "table": outcome.path.name,
         "table_sha256": sha256_file(outcome.path),
         "n_rows": len(outcome.table),
@@ -289,3 +325,184 @@ def run_score(run: Run) -> StageOutcome:
         f"score: {len(result.table)} rows, {_counts_text(outcome.counts)}; rows with a value: {available}",
     )
     return outcome
+
+
+def run_filter(run: Run) -> StageOutcome:
+    """Mark the rows that satisfy the filters of the config. No row is removed."""
+    source = stage_table_path(run.workdir, score.STAGE)
+    if not source.exists():
+        raise RunnerError(
+            f"{source} does not exist; run 'mofsift score {run.config_path}' first "
+            "(or 'mofsift run' for all stages)"
+        )
+    try:
+        result = filtering.run(read_table(source), run.cfg, run.workdir)
+    except FilterError as err:
+        raise InvalidFilterError(str(err)) from err
+    except (TableError, ValueError) as err:
+        raise RunnerError(f"{source}: {err}") from err
+    path = write_table(result.table, stage_table_path(run.workdir, filtering.STAGE))
+    outcome = StageOutcome(
+        stage=filtering.STAGE,
+        table=result.table,
+        path=path,
+        counts=status_counts(result.table, filtering.STAGE),
+        details={
+            "filters": [r.as_dict() for r in result.reports],
+            "selected": result.n_selected,
+            "rejected": len(result.table) - result.n_selected,
+            "input_sha256": sha256_file(source),
+        },
+    )
+    _write_meta(run, outcome, {})
+    if result.reports:
+        log_event(
+            run,
+            f"filter: {len(result.table)} rows; {result.n_selected} satisfy every filter, "
+            f"{len(result.table) - result.n_selected} do not",
+        )
+        for report in result.reports:
+            log_event(
+                run,
+                f"filter:   {report.expression}: {report.passed} true, {report.rejected} false, "
+                f"{report.undecided} undecided (missing value)",
+            )
+    else:
+        log_event(run, f"filter: no filters in the config; all {len(result.table)} rows are kept")
+    return outcome
+
+
+@dataclass
+class ExportOutcome:
+    out_dir: Path
+    manifest: dict[str, Any]
+    n_enumerated: int
+    n_selected: int
+    n_structures: int
+    warnings: list[str] = field(default_factory=list)
+
+
+def read_stage_metas(run: Run) -> dict[str, dict[str, Any]]:
+    """The ``.meta.json`` record of every table stage that has one."""
+    metas: dict[str, dict[str, Any]] = {}
+    for stage in TABLE_STAGES:
+        path = stage_table_path(run.workdir, stage).with_suffix(".meta.json")
+        try:
+            meta = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(meta, dict):
+            metas[stage] = meta
+    return metas
+
+
+def chain_warnings(run: Run, metas: dict[str, dict[str, Any]]) -> list[str]:
+    """What is out of step in the work folder: a table older than its input or than the config."""
+    warnings: list[str] = []
+    previous: Path | None = None
+    for stage in TABLE_STAGES:
+        table = stage_table_path(run.workdir, stage)
+        meta = metas.get(stage)
+        if not table.exists():
+            warnings.append(f"{table.name} is not in the work folder")
+        elif meta is None:
+            warnings.append(f"{table.name} has no .meta.json; what produced it is not recorded")
+        else:
+            if meta.get("table_sha256") != sha256_file(table):
+                warnings.append(f"{table.name} was changed after 'mofsift {stage}' wrote it")
+            recorded = meta.get("stage_config_hash")
+            if recorded is not None and recorded != stage_config_hash(run.cfg, stage):
+                warnings.append(
+                    f"{table.name} was made before {_STAGE_SECTIONS[stage]} in the config was "
+                    f"changed; run 'mofsift {stage}' and the stages after it again"
+                )
+            used = (meta.get("details") or {}).get("input_sha256")
+            if previous is not None and previous.exists() and used and used != sha256_file(previous):
+                warnings.append(
+                    f"{table.name} was made from an older {previous.name}; run 'mofsift {stage}' "
+                    "and the stages after it again"
+                )
+        previous = table
+    return warnings
+
+
+def _stays_inside(relative: str) -> bool:
+    """True for a relative path without ``..``: a ``cif_path`` that cannot leave the work folder."""
+    posix, windows = PurePosixPath(relative.replace("\\", "/")), PureWindowsPath(relative)
+    return not (posix.is_absolute() or windows.is_absolute() or windows.drive or ".." in posix.parts)
+
+
+def run_export(run: Run, out_dir: str | Path | None = None, *, force: bool = False) -> ExportOutcome:
+    """Write the rows that passed the filters as a bundle (table, records, structures, manifest)."""
+    source = stage_table_path(run.workdir, filtering.STAGE)
+    if not source.exists():
+        raise RunnerError(
+            f"{source} does not exist; run 'mofsift filter {run.config_path}' first "
+            "(or 'mofsift run' for all stages)"
+        )
+    try:
+        table = read_table(source)
+    except TableError as err:
+        raise RunnerError(str(err)) from err
+    cfg = run.cfg
+    target = Path(out_dir) if out_dir is not None else export_dir(run.config_path, cfg)
+    metas = read_stage_metas(run)
+    warnings = chain_warnings(run, metas)
+    chosen = table[filtering.selected(table)]
+
+    structure_files: dict[str, Path] = {}
+    if "cif_path" in chosen.columns:
+        for record_id, relative in chosen["cif_path"].dropna().items():
+            if not _stays_inside(str(relative)):
+                raise RunnerError(f"{source}: cif_path of {record_id} is not a path inside the work folder")
+            structure_files[str(record_id)] = run.workdir / str(relative)
+
+    # the filters that were applied to the table, which a changed config no longer tells
+    reports = (metas.get(filtering.STAGE, {}).get("details") or {}).get("filters")
+    if not isinstance(reports, list):
+        reports = []
+    tools: dict[str, str | None] = {}
+    for meta in metas.values():
+        tools.update({k: v for k, v in (meta.get("tools") or {}).items() if v})
+    reference = (metas.get(score.STAGE, {}).get("details") or {}).get("reference")
+    third_party = []
+    if reference and any(str(c).startswith("precedent_") for c in chosen.columns):
+        third_party.append(
+            {
+                "used_for": "precedent_* columns (counts computed by mofsift, not the original data)",
+                "source": reference.get("source"),
+                "licence": reference.get("licence"),
+                "cite": reference.get("cite"),
+            }
+        )
+    try:
+        result = export.write_bundle(
+            chosen,
+            target,
+            project=cfg.project,
+            structure_files=structure_files,
+            table_format=cfg.export.table_format,
+            viewer_bundle=cfg.export.viewer_bundle,
+            include_cifs=cfg.export.include_cifs,
+            enumerated=len(table),
+            config=cfg.model_dump(mode="json"),
+            config_hash=cfg.config_hash(),
+            filters=reports,
+            stages=[metas[s] for s in TABLE_STAGES if s in metas],
+            tools=tools,
+            third_party=third_party,
+            warnings=warnings,
+            force=force,
+        )
+    except export.BundleError as err:
+        raise RunnerError(str(err)) from err
+    log_event(
+        run,
+        f"export: {result.n_records} of {len(table)} rows, {result.n_structures} structure file(s) "
+        f"-> {result.out_dir}",
+    )
+    for warning in result.warnings:
+        log_event(run, f"export: warning: {warning}")
+    return ExportOutcome(
+        result.out_dir, result.manifest, len(table), result.n_records, result.n_structures, result.warnings
+    )

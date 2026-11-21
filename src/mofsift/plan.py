@@ -6,11 +6,14 @@ act on it), so what the user is told and what happens cannot drift apart.
 
 from __future__ import annotations
 
+import difflib
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from typing import Any, Literal
 
+from mofsift.columns import COLUMN_INFO
 from mofsift.config import Config, GeometryConfig, XtbConfig
+from mofsift.filters import ID_NAME, validate_expression
 
 Action = Literal["run", "skip", "error"]
 
@@ -77,9 +80,34 @@ def plan_stages(cfg: Config, available: Mapping[str, bool]) -> list[StagePlan]:
         plans.append(StagePlan("score", "run", "components: " + ", ".join(cfg.score.components)))
     else:
         plans.append(StagePlan("score", "skip", "no components listed in the config"))
-    if cfg.filter:
-        plans.append(StagePlan("filter", "run", f"{len(cfg.filter)} expression(s)"))
+    plans.append(_filter_plan(cfg))
+    if cfg.export.table_format == "parquet" and not available.get("pyarrow", False):
+        plans.append(
+            StagePlan(
+                "export",
+                "error",
+                "table_format: parquet needs pyarrow, which is not installed "
+                "(pip install 'mofsift[parquet]')",
+            )
+        )
     else:
-        plans.append(StagePlan("filter", "skip", "no filters in the config"))
-    plans.append(StagePlan("export", "run"))
+        parts = [f"table ({cfg.export.table_format})"]
+        parts += ["records for a viewer"] if cfg.export.viewer_bundle else []
+        parts += ["structure files"] if cfg.export.include_cifs else []
+        plans.append(StagePlan("export", "run", ", ".join(parts)))
     return plans
+
+
+def _filter_plan(cfg: Config) -> StagePlan:
+    """Filters can name any column a stage writes; a name that no stage writes is caught here."""
+    if not cfg.filter:
+        return StagePlan("filter", "skip", "no filters in the config")
+    known = {ID_NAME, *COLUMN_INFO}
+    unknown: list[str] = []
+    for expression in cfg.filter:
+        for name in sorted(validate_expression(expression) - known):
+            close = difflib.get_close_matches(name, sorted(known), n=1)
+            unknown.append(f"{name!r}" + (f" (did you mean {close[0]!r}?)" if close else ""))
+    if unknown:
+        return StagePlan("filter", "error", "no stage writes the column " + ", ".join(unknown))
+    return StagePlan("filter", "run", f"{len(cfg.filter)} expression(s)")

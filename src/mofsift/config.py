@@ -43,6 +43,11 @@ NOT_IN_AGGREGATE = {"precedent_node": "it does not separate synthesised from hyp
 _PROJECT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
 
+def valid_project_name(name: str) -> bool:
+    """True for a name that can be used as ``project``: letters, digits, '_', '-' and '.'."""
+    return bool(_PROJECT_RE.match(name))
+
+
 class ConfigError(ValueError):
     """Raised when a config file is missing, is not valid YAML, or fails validation."""
 
@@ -279,9 +284,16 @@ class ScoreConfig(_Model):
 
 
 class ExportConfig(_Model):
-    viewer_bundle: bool = True
-    include_cifs: bool = True
-    table_format: Literal["csv", "parquet"] = "csv"
+    """The bundle written by the export: table, records for a viewer, structures, manifest."""
+
+    out_dir: Path | None = Field(
+        None, description="Folder of the bundle. Default: export/<project>, next to the config file."
+    )
+    viewer_bundle: bool = Field(True, description="Also write the rows as JSON records (candidates.json).")
+    include_cifs: bool = Field(True, description="Copy the structure file of every exported row.")
+    table_format: Literal["csv", "parquet"] = Field(
+        "csv", description="Format of the exported table. parquet needs pyarrow."
+    )
 
 
 class ToolsConfig(_Model):
@@ -302,7 +314,9 @@ class Config(_Model):
     describe: DescribeConfig = Field(default_factory=DescribeConfig)
     score: ScoreConfig = Field(default_factory=ScoreConfig)
     filter: list[str] = Field(
-        default_factory=list, description="Row filters applied as an explicit step, e.g. 'qc_pass == True'."
+        default_factory=list,
+        description="Row filters applied as an explicit step, e.g. 'qc_pass == True'. A row is "
+        "exported when every filter is true for it.",
     )
     export: ExportConfig = Field(default_factory=ExportConfig)
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
@@ -310,7 +324,7 @@ class Config(_Model):
     @field_validator("project")
     @classmethod
     def _project_slug(cls, v: str) -> str:
-        if not _PROJECT_RE.match(v):
+        if not valid_project_name(v):
             raise ValueError("use letters, digits, '_', '-' or '.', starting with a letter or digit")
         return v
 
@@ -382,6 +396,11 @@ def load_config(path: str | Path) -> Config:
     except yaml.YAMLError as err:
         raise ConfigError(f"{path}: not valid YAML ({err})") from err
     return parse_config(data, source=str(path))
+
+
+def export_dir(config_file: str | Path, cfg: Config) -> Path:
+    """Folder of the bundle for ``cfg``: ``export.out_dir``, or ``export/<project>`` by default."""
+    return resolve_path(config_file, cfg.export.out_dir or Path("export") / cfg.project)
 
 
 def resolve_path(config_file: str | Path, value: str | Path) -> Path:

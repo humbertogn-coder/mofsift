@@ -213,6 +213,14 @@ def default_tools(cfg: ToolsConfig | None = None) -> list[Tool]:
             "surrogate (deferred)",
             "pip install 'mofsift[ml]'",
         ),
+        PythonTool(
+            "pyarrow",
+            "pyarrow",
+            "pyarrow",
+            "parquet",
+            "export (table_format: parquet)",
+            "pip install 'mofsift[parquet]'",
+        ),
         BinaryTool(
             "zeo++ (network)",
             ("network",),

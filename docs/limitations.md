@@ -50,6 +50,22 @@ Read this before using any number produced with mofsift.
   in `fallback`, so one table can contain rows from different accuracy settings; the column
   `zeo_high_accuracy` says which. The settings can differ by a few tenths of an angstrom.
 
+## Filters and bundles
+
+- A filter decides on the values in the table. It does not know how reliable a value is: a
+  filter on `xtb_gap` selects on a proxy (see below).
+- A row for which a filter cannot be decided, because a value it needs was not computed, is not
+  exported. Look at `filter_rejected_by` in `work/05_filter.csv` before concluding that few
+  candidates qualify; the stage that computes the value may simply not have run.
+- `mofsift validate` checks that a bundle is complete and consistent with itself. It does not
+  check that the numbers are right.
+- A merged bundle can hold rows computed with different settings or tool versions; its manifest
+  lists them per source. A merge detects two different structure files for one record, but only
+  when both bundles include the files; without them it cannot know that the values of two
+  bundles belong to the same geometry. `score_aggregate` ranks within one source table and is not comparable
+  across the sources of a merged bundle.
+- The manifest contains the config as written, paths included.
+
 ## Electronic descriptors
 
 - A band gap, from any method, is not electrical conductivity, carrier mobility or a transport

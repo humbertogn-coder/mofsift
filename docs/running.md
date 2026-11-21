@@ -57,7 +57,12 @@ sbatch --account=YOUR_ACCOUNT --export=ALL,CONFIG=mofsift.yaml --array=1-20 \
 squeue -u $USER                   # wait until the array has finished
 mofsift describe mofsift.yaml     # assembles the table from the stored results
 mofsift score mofsift.yaml
+mofsift filter mofsift.yaml
+mofsift export mofsift.yaml       # writes the bundle: export/<project>/
+mofsift validate export/<project>
 ```
+
+The bundle is the folder to copy to the laptop or to share; it does not need the `work/` folder.
 
 To update the installation later: `cd /scratch/user/$USER/mofsift && git pull`.
 

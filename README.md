@@ -13,9 +13,9 @@ config.yaml -> generate -> qc -> describe -> score -> filter -> export -> viewer
 Most open MOF workflows target gas adsorption. mofsift targets **electronic properties**
 (band gap and related proxies).
 
-> **Status: pre-alpha.** This version runs `generate`, `qc`, `describe` (composition, pore
-> geometry, xTB) and `score` (synthetic-accessibility components). Filtering and export are not
-> implemented yet (see [Roadmap](#roadmap)).
+> **Status: pre-alpha.** Every stage of the pipeline runs: `generate`, `qc`, `describe`
+> (composition, pore geometry, xTB), `score` (synthetic-accessibility components), `filter` and
+> `export`. The viewer for the exported bundles is the next step (see [Roadmap](#roadmap)).
 
 ## Read this first
 
@@ -35,7 +35,7 @@ More in [docs/limitations.md](docs/limitations.md).
 Python 3.11–3.13. On Linux, macOS or WSL, install everything:
 
 ```bash
-pip install -e ".[all]"          # PORMAKE, pyzeo (Zeo++), tblite (xTB), scikit-learn
+pip install -e ".[all]"          # PORMAKE, pyzeo (Zeo++), tblite (xTB), scikit-learn, pyarrow
 ```
 
 Pore geometry (Zeo++) and the xTB electronic proxies are the descriptors this package exists
@@ -58,11 +58,24 @@ run the geometry and xTB stages under WSL or on a cluster. Conda users: `environ
 ```bash
 mofsift init                  # writes a commented example config: mofsift.yaml
 mofsift doctor mofsift.yaml   # tools found, config valid, how many candidates, which stages run
-mofsift run mofsift.yaml      # generate + qc + describe + score (the stages implemented so far)
+mofsift run mofsift.yaml      # generate, qc, describe, score, filter, export
+mofsift validate export/demo_irmof    # check the bundle that was written
 ```
 
 The example config assembles two IRMOF-type frameworks with PORMAKE (Zn4O node on the `pcu` net
-with BDC and BPDC) and checks them; it takes a few seconds. The result is in `work/`:
+with BDC and BPDC) and checks them; it takes a few seconds. The result you keep or share is the
+**bundle**:
+
+```
+export/demo_irmof/
+  manifest.json          what is in the bundle and what produced it: config, filters, tool
+                         versions, checksums, and what every column means
+  candidates.csv         the rows that passed the filters, every column
+  candidates.json        the same rows as JSON records, for a viewer
+  structures/<id>.cif    one CIF per record
+```
+
+The steps on the way are in `work/`, and every row stays there, rejected or not:
 
 ```
 work/
@@ -70,6 +83,7 @@ work/
   02_qc.csv              the same rows plus the check results and qc_pass
   03_describe.csv        the same rows plus composition, pore geometry and xTB columns
   04_score.csv           the same rows plus the synthetic-accessibility components
+  05_filter.csv          the same rows plus filter_pass and the filters each row failed
   describe/              one stored result per structure and sub-stage (reused on later runs)
   run.log                what ran, what was skipped, and why
   *.meta.json            what produced each table (versions, config hash, counts)
@@ -78,9 +92,9 @@ work/
   blocks/<name>.xyz      building blocks made from SMILES linkers, in PORMAKE's format
 ```
 
-Stages can also be run one at a time (`mofsift generate`, `mofsift qc`, `mofsift describe`).
-Structures and descriptor results that already exist in the work folder are reused; `--force`
-computes them again.
+Stages can also be run one at a time (`mofsift generate`, `qc`, `describe`, `score`, `filter`,
+`export`). Structures and descriptor results that already exist in the work folder are reused;
+`--force` computes them again.
 
 ### Descriptors
 
@@ -99,6 +113,21 @@ the linker, and how many distinct synthesised MOFs in a reference built from the
 share the candidate's topology, metal, linker, and metal-linker pair. None is a probability.
 How well each one separates synthesised from hypothetical MOFs is measured and reported in
 [docs/score-validation.md](docs/score-validation.md); details in [docs/score.md](docs/score.md).
+
+### Filters, bundles, merging
+
+```yaml
+filter:
+  - "qc_pass == True"
+  - "xtb_gap < 1.5 and xtb_unpaired_electrons == 0"
+```
+
+A row is exported when every filter is true for it. A filter that cannot be decided because a
+value is missing (no xTB result, for example) does not pass, and the table says which value was
+missing; nothing is guessed. `mofsift validate DIR` checks a bundle anywhere, without the config
+or the work folder. `mofsift merge A B --out C` joins bundles (several configs shown as one set,
+or one config computed on two machines) and stops on values that disagree.
+Details: [docs/export.md](docs/export.md).
 
 The commands for Windows, a Slurm cluster and GitHub are collected in
 [docs/running.md](docs/running.md).
@@ -140,9 +169,9 @@ through the same checks. What the checks cover, and every column, is described i
 
 ### Exit codes
 
-0 = done; 1 = a core dependency is broken or a stage cannot run (for example PORMAKE is needed
-and missing, or `qc` was called before `generate`); 2 = the config is invalid or names
-something that does not exist.
+0 = done; 1 = a core dependency is broken, a stage cannot run (for example PORMAKE is needed
+and missing, or `qc` was called before `generate`), or `validate` found problems; 2 = the config
+is invalid or names something that does not exist (a block, a folder, a column in a filter).
 
 A missing optional tool is not an error: the stage that needs it is skipped and the reason is
 recorded. Set `enabled: true` together with `on_missing: error` to make a tool mandatory.
@@ -157,17 +186,19 @@ recorded. Set `enabled: true` together with `on_missing: error` to make a tool m
   [docs/generate-and-qc.md](docs/generate-and-qc.md#reruns)).
 - **Unknown config keys are errors**, with a suggestion when the key looks like a typo.
 - **Filters cannot run code.** Only comparisons, `and`/`or`/`not`, arithmetic and `in` are allowed.
+- **A bundle explains itself.** Its manifest carries the config, the filters, the tool versions,
+  a checksum of every file and the meaning of every column.
 
 ## Roadmap
 
 | # | Milestone | Status |
 |---|---|---|
-| 1 | Skeleton: install, `init`, `doctor`, config validation, CI | done locally; CI to be confirmed on the first push |
-| 2 | Generate (PORMAKE blocks, linkers from SMILES, or existing CIFs) + QC | done locally |
-| 3 | Describe: composition, pore geometry (pyzeo), xTB (tblite) | done locally |
-| 4 | Score: linker and precedent components, with a published validation benchmark | done locally |
-| 5 | Export: table + viewer bundle + manifest; `merge`; `validate` | next |
-| 6 | Viewer support for generic bundles | planned |
+| 1 | Skeleton: install, `init`, `doctor`, config validation, CI | done |
+| 2 | Generate (PORMAKE blocks, linkers from SMILES, or existing CIFs) + QC | done |
+| 3 | Describe: composition, pore geometry (pyzeo), xTB (tblite) | done |
+| 4 | Score: linker and precedent components, with a published validation benchmark | done |
+| 5 | Filter and export: table + viewer bundle + manifest; `merge`; `validate` | done |
+| 6 | Viewer support for generic bundles | next |
 | 7 | Docs, tutorial, release preparation | planned |
 
 ## Development
@@ -179,6 +210,7 @@ pip install -e ".[dev,generate]" && pytest -m external   # the tests that build 
 ruff check .
 ruff format --check .
 python -m mofsift.config > src/mofsift/schemas/config.schema.json   # after changing the config model
+python -m mofsift.export.schemas src/mofsift/schemas                # after changing a column or the manifest
 ```
 
 ## Origin, licence and citation

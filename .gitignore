@@ -11,6 +11,8 @@ htmlcov/
 # run outputs
 /work/
 work_*/
+/export/
+examples/export/
 examples/my_cifs/
 runtime.log
 /site_data/

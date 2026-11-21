@@ -1,9 +1,10 @@
 """Command-line interface.
 
-This version provides ``init``, ``doctor``, ``generate``, ``qc``, ``describe``, ``score`` and
-``run``. The other commands (export, merge, validate) are added as each stage is implemented.
+``init`` and ``doctor``; one command per stage (``generate``, ``qc``, ``describe``, ``score``,
+``filter``, ``export``) and ``run`` for all of them; ``validate`` and ``merge`` for bundles.
 
-Exit codes: 0 = done; 1 = a stage could not run; 2 = the config is invalid.
+Exit codes: 0 = done; 1 = a stage could not run, or a bundle is not valid; 2 = the config
+is invalid or names something that does not exist.
 """
 
 from __future__ import annotations
@@ -16,18 +17,22 @@ from pathlib import Path
 import typer
 
 from mofsift import __version__
-from mofsift.config import Config, ConfigError, load_config
+from mofsift.config import Config, ConfigError, load_config, valid_project_name
 from mofsift.describe import SUBSTAGES, parse_block, parse_only
+from mofsift.export import BundleError, MergeError, merge_bundles, validate_bundle
 from mofsift.generate import GenerateError
 from mofsift.generate import preview as preview_generate
 from mofsift.generate.pormake_adapter import PormakeMissingError
 from mofsift.plan import StagePlan, plan_stages
 from mofsift.runner import (
-    IMPLEMENTED,
+    ExportOutcome,
+    InvalidFilterError,
     Run,
     RunnerError,
     StageOutcome,
     run_describe,
+    run_export,
+    run_filter,
     run_generate,
     run_qc,
     run_score,
@@ -158,11 +163,6 @@ def doctor(
                     typer.echo(line)
                 for note in notes:
                     typer.echo(f"  note: {note}")
-                typer.echo("")
-                typer.echo(
-                    f"Note: this version of mofsift runs {', '.join(IMPLEMENTED)}. "
-                    "For the other stages the plan shows what they will do once they are implemented."
-                )
         if not core_ok:
             typer.echo("\nA core dependency is missing or broken; reinstall mofsift.", err=True)
 
@@ -364,16 +364,172 @@ def score_command(config: Path = _CONFIG_ARG) -> None:
     _do_score(_load_run(config))
 
 
+def _do_filter(run_: Run) -> StageOutcome:
+    try:
+        outcome = run_filter(run_)
+    except InvalidFilterError as err:
+        typer.echo(f"{run_.config_path}: {err}", err=True)
+        raise typer.Exit(code=2) from err
+    except RunnerError as err:
+        typer.echo(f"filter cannot run: {err}", err=True)
+        raise typer.Exit(code=1) from err
+    n = len(outcome.table)
+    reports = outcome.details["filters"]
+    if not reports:
+        typer.echo(f"filter: no filters in the config; all {n} row(s) are kept")
+    else:
+        typer.echo(
+            f"filter: {n} row(s): {outcome.details['selected']} satisfy every filter, "
+            f"{outcome.details['rejected']} do not"
+        )
+        for report in reports:
+            line = f"    {report['expression']}: {report['passed']} true, {report['rejected']} false"
+            if report["undecided"]:
+                line += f", {report['undecided']} undecided because a value is missing"
+            typer.echo(line)
+    typer.echo(f"  table: {outcome.path}")
+    return outcome
+
+
+@app.command(name="filter")
+def filter_command(config: Path = _CONFIG_ARG) -> None:
+    """Mark the rows that satisfy the filters of the config (no row is removed)."""
+    _do_filter(_load_run(config))
+
+
+def _do_export(run_: Run, out: Path | None, force: bool) -> ExportOutcome:
+    try:
+        outcome = run_export(run_, out, force=force)
+    except RunnerError as err:
+        typer.echo(f"export cannot run: {err}", err=True)
+        raise typer.Exit(code=1) from err
+    typer.echo(
+        f"export: {outcome.n_selected} of {outcome.n_enumerated} row(s), "
+        f"{outcome.n_structures} structure file(s)"
+    )
+    typer.echo(f"  bundle: {outcome.out_dir}")
+    for warning in outcome.warnings:
+        typer.echo(f"WARNING: {warning}", err=True)
+    return outcome
+
+
+@app.command(name="export")
+def export_command(
+    config: Path = _CONFIG_ARG,
+    out: Path = typer.Option(
+        None,
+        "--out",
+        help="Folder of the bundle, relative to the current folder. Default: export.out_dir of the "
+        "config, or export/<project> next to the config file.",
+    ),
+    force: bool = typer.Option(
+        False, "--force", help="Replace the bundle of another project found in that folder."
+    ),
+) -> None:
+    """Write the rows that passed the filters as a bundle: table, records, structures, manifest."""
+    _do_export(_load_run(config), out, force)
+
+
+@app.command()
+def validate(
+    bundle: Path = typer.Argument(..., help="Folder of a bundle (the one that holds manifest.json)."),
+    as_json: bool = typer.Option(False, "--json", help="Print machine-readable JSON."),
+) -> None:
+    """Check a bundle: manifest, checksums, table, records and structure files."""
+    try:
+        result = validate_bundle(bundle)
+    except BundleError as err:
+        typer.echo(str(err), err=True)
+        raise typer.Exit(code=2) from err
+    if as_json:
+        typer.echo(json.dumps(result.as_dict(), indent=2))
+    else:
+        if result.ok:
+            summary = result.summary
+            typer.echo(
+                f"{bundle}: valid bundle of project {summary['project']} "
+                f"({summary['records']} record(s), {summary['structures']} structure file(s))"
+            )
+        else:
+            typer.echo(f"{bundle}: NOT a valid bundle; {len(result.problems)} problem(s):", err=True)
+            for problem in result.problems:
+                typer.echo(f"  - {problem}", err=True)
+        for note in result.notes:
+            typer.echo(f"  note: {note}")
+    if not result.ok:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def merge(
+    bundles: list[Path] = typer.Argument(..., help="Two or more bundle folders. The first one wins ties."),
+    out: Path = typer.Option(..., "--out", help="Folder of the merged bundle."),
+    project: str = typer.Option("merged", "--project", help="Name of the merged bundle."),
+    on_conflict: str = typer.Option(
+        "error",
+        "--on-conflict",
+        help="When two bundles give different values for the same record: error (stop and list "
+        "them), first or last (keep the value of the first or last bundle).",
+    ),
+    table_format: str = typer.Option("csv", "--table-format", help="csv or parquet."),
+    force: bool = typer.Option(
+        False, "--force", help="Replace the bundle of another project found in the output folder."
+    ),
+) -> None:
+    """Merge bundles into one: union of records and columns, values checked for conflicts."""
+    if on_conflict not in ("error", "first", "last"):
+        typer.echo("--on-conflict must be error, first or last", err=True)
+        raise typer.Exit(code=2)
+    if table_format not in ("csv", "parquet"):
+        typer.echo("--table-format must be csv or parquet", err=True)
+        raise typer.Exit(code=2)
+    missing = [str(b) for b in bundles if not b.is_dir()]
+    if missing:
+        typer.echo(f"not a folder: {', '.join(missing)}", err=True)
+        raise typer.Exit(code=2)
+    if not valid_project_name(project):
+        typer.echo(
+            "--project: use letters, digits, '_', '-' or '.', starting with a letter or digit", err=True
+        )
+        raise typer.Exit(code=2)
+    try:
+        result = merge_bundles(
+            bundles,
+            out,
+            project=project,
+            on_conflict=on_conflict,  # type: ignore[arg-type]
+            table_format=table_format,
+            force=force,
+        )
+    except (MergeError, BundleError) as err:
+        typer.echo(f"merge cannot be done: {err}", err=True)
+        raise typer.Exit(code=1) from err
+    typer.echo(
+        f"merge: {result.n_records} record(s) from {len(bundles)} bundles, "
+        f"{result.n_structures} structure file(s)"
+    )
+    typer.echo(f"  bundle: {result.out_dir}")
+    for warning in result.warnings:
+        typer.echo(f"WARNING: {warning}", err=True)
+
+
 @app.command(name="run")
 def run_all(config: Path = _CONFIG_ARG, force: bool = _FORCE_OPT, quiet: bool = _QUIET_OPT) -> None:
-    """Run every stage that this version implements, in order."""
+    """Run every stage in order: generate, qc, describe, score, filter, export."""
     run_ = _load_run(config)
+    # A filter that names an unknown column, or an export that cannot be written, would only
+    # show after the long stages; check both before starting.
+    available = {t.name: t.check()[0] for t in default_tools(run_.cfg.tools)}
+    for plan in plan_stages(run_.cfg, available):
+        if plan.stage in ("filter", "export") and plan.action == "error":
+            typer.echo(f"{config}: {plan.stage} cannot run: {plan.reason}", err=True)
+            raise typer.Exit(code=2 if plan.stage == "filter" else 1)
     _do_generate(run_, force, quiet)
     _do_qc(run_)
     _do_describe(run_, SUBSTAGES, None, False, quiet)
     _do_score(run_)
-    later = [p.stage for p in plan_stages(run_.cfg, {}) if p.stage.split(".")[0] not in IMPLEMENTED]
-    typer.echo(f"Not implemented in this version, so not run: {', '.join(later)}")
+    _do_filter(run_)
+    _do_export(run_, None, False)
 
 
 def run() -> None:  # pragma: no cover

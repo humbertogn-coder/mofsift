@@ -80,3 +80,22 @@ def test_geometry_tool_choice_selects_the_adapter(minimal_dict):
     p = _plan(minimal_dict, avail)["describe.geometry"]
     assert p.action == "skip" and "zeo++ (network) is not installed" in p.reason
     assert _plan(minimal_dict, {**avail, "zeo++ (network)": True})["describe.geometry"].action == "run"
+
+
+def test_a_filter_on_a_column_no_stage_writes_is_an_error(minimal_dict):
+    minimal_dict["filter"] = ["qc_pass == True", "xtb_gapp < 1 and my_score > 2"]
+    p = _plan(minimal_dict, ALL)["filter"]
+    assert p.action == "error"
+    assert p.reason == "no stage writes the column 'my_score', 'xtb_gapp' (did you mean 'xtb_gap'?)"
+    minimal_dict["filter"] = ["qc_pass == True", "id != 'ms-0'", "score_aggregate > 0.5"]
+    p = _plan(minimal_dict, ALL)["filter"]
+    assert p.action == "run" and p.reason == "3 expression(s)"
+
+
+def test_export_plan_says_what_is_written_and_needs_pyarrow_for_parquet(minimal_dict):
+    assert _plan(minimal_dict, ALL)["export"].reason == "table (csv), records for a viewer, structure files"
+    minimal_dict["export"] = {"table_format": "parquet", "viewer_bundle": False, "include_cifs": False}
+    p = _plan(minimal_dict, ALL)["export"]
+    assert p.action == "error" and "pip install 'mofsift[parquet]'" in p.reason
+    p = _plan(minimal_dict, {**ALL, "pyarrow": True})["export"]
+    assert p.action == "run" and p.reason == "table (parquet)"

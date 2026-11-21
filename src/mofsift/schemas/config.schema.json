@@ -47,14 +47,31 @@
     },
     "ExportConfig": {
       "additionalProperties": false,
+      "description": "The bundle written by the export: table, records for a viewer, structures, manifest.",
       "properties": {
         "include_cifs": {
           "default": true,
+          "description": "Copy the structure file of every exported row.",
           "title": "Include Cifs",
           "type": "boolean"
         },
+        "out_dir": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Folder of the bundle. Default: export/<project>, next to the config file.",
+          "title": "Out Dir"
+        },
         "table_format": {
           "default": "csv",
+          "description": "Format of the exported table. parquet needs pyarrow.",
           "enum": [
             "csv",
             "parquet"
@@ -64,6 +81,7 @@
         },
         "viewer_bundle": {
           "default": true,
+          "description": "Also write the rows as JSON records (candidates.json).",
           "title": "Viewer Bundle",
           "type": "boolean"
         }
@@ -547,7 +565,7 @@
       "$ref": "#/$defs/ExportConfig"
     },
     "filter": {
-      "description": "Row filters applied as an explicit step, e.g. 'qc_pass == True'.",
+      "description": "Row filters applied as an explicit step, e.g. 'qc_pass == True'. A row is exported when every filter is true for it.",
       "items": {
         "type": "string"
       },

@@ -5,6 +5,28 @@ All notable changes are listed here. The format follows Keep a Changelog; versio
 ## [Unreleased]
 
 ### Added
+- `filter` step (`mofsift filter`, table `work/05_filter.csv`): the filters of the config are
+  evaluated on every row and recorded in `filter_pass` and `filter_rejected_by`. No row is
+  removed. A filter whose answer depends on a missing value is undecided: the row does not pass
+  and the missing columns are named; so is a division by zero. `column == None` and
+  `column != None` test for a missing value. A filter on a column that no stage writes is reported by `doctor` and stops `run`
+  before anything is computed.
+- `export` stage (`mofsift export`): the rows that passed are written as a bundle in
+  `export/<project>/`: `candidates.csv` (or parquet), `candidates.json` (one JSON record per
+  row), `structures/<id>.cif` and `manifest.json`. The manifest holds the config, the filters
+  with their counts, what every stage reported, tool versions, a SHA-256 of every file and a
+  dictionary of the columns (type, stage, unit, description).
+- The export warns, and records in the manifest, when a work table is older than its input or
+  than the section of the config it depends on.
+- `mofsift validate DIR`: checks a bundle from the folder alone (manifest schema, checksums,
+  table, records against the candidate schema and against the table, structure files, counts).
+- `mofsift merge A B ... --out DIR`: union of records and columns; missing values are filled
+  from the other bundle; different values, or different structure files, for the same record
+  stop the merge unless `--on-conflict first|last` is given. The manifest lists the sources.
+- JSON Schemas for the manifest and for a candidate record, in `mofsift/schemas/`.
+- `mofsift run` now ends with `filter` and `export`.
+- New config key `export.out_dir`; new extra `parquet` (pyarrow), part of `all`.
+- `docs/export.md`.
 - `score` stage (`mofsift score`, table `work/04_score.csv`): linker components (`linker_sa`,
   `linker_sc`, `linker_size`, `linker_rotatable_bonds`) and precedent components
   (`precedent_topology`, `precedent_node`, `precedent_linker`, `precedent_pair`) as separate
@@ -31,8 +53,7 @@ All notable changes are listed here. The format follows Keep a Changelog; versio
   which setting produced each row.
 - Linker scores as functions (`mofsift.score.linker_scores`): SA score (RDKit), SCScore, size and
   rotatable bonds. SCScore is not on PyPI, so its code (ported to current Python) and its original
-  weights are included under `src/mofsift/score/_scscore/` with their MIT licence. The score stage
-  that writes them to the table is not implemented yet.
+  weights are included under `src/mofsift/score/_scscore/` with their MIT licence.
 - `examples/slurm/grace_describe_array.slurm` and install steps for Grace (TAMU HPRC).
 - By default geometry and xTB run only on structures that passed qc (`describe.only_qc_passed`).
 - A visible warning when geometry or xTB cannot run because the tool is missing.
@@ -60,6 +81,8 @@ All notable changes are listed here. The format follows Keep a Changelog; versio
 - CI: a job that installs PORMAKE and runs the tests marked `external`.
 
 ### Changed
+- Each `.meta.json` also records `stage_config_hash`, the hash of the part of the config its
+  stage reads.
 - `linker_smiles` is empty when a metal-free node is joined to an edge (the two form one larger
   linker, which is not derived); before, the SMILES of both blocks were listed.
 - `score.components` lists all eight components by default; new component `precedent_linker`.

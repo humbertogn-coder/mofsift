@@ -80,7 +80,7 @@ def test_default_registry_covers_every_tier():
     names = [t.name for t in tools]
     assert len(names) == len(set(names))
     assert {"pormake", "pyzeo", "tblite", "rdkit", "zeo++ (network)"} <= set(names)
-    assert {t.tier for t in tools} == {"core", "generate", "zeo", "xtb", "ml"}
+    assert {t.tier for t in tools} == {"core", "generate", "zeo", "xtb", "ml", "parquet"}
     core = [s for s in collect_status(tools) if s.tier == "core"]
     assert core and all(s.available and s.version for s in core), [s for s in core if not s.available]
 

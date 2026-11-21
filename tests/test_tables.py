@@ -61,8 +61,9 @@ def test_ids_must_be_present_and_unique(tmp_path):
         read_table(tmp_path / "missing.csv")
 
 
-def test_a_cell_of_the_wrong_type_is_reported(tmp_path):
-    (tmp_path / "bad.csv").write_text("id,n_atoms\nms-1,many\n", encoding="utf-8")
+@pytest.mark.parametrize("cell", ["many", "5.5", "99999999999999999999999999"])
+def test_a_cell_of_the_wrong_type_is_reported(tmp_path, cell):
+    (tmp_path / "bad.csv").write_text(f"id,n_atoms\nms-1,{cell}\n", encoding="utf-8")
     with pytest.raises(TableError, match="cannot read the table"):
         read_table(tmp_path / "bad.csv")
 

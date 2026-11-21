@@ -139,4 +139,49 @@ def test_command_line_blocks_give_the_same_table_as_one_run(tmp_path):
     assert sha256_file(one / "work" / "03_describe.csv") == sha256_file(two / "work" / "03_describe.csv")
     table = read_table(one / "work" / "03_describe.csv")
     assert table["xtb_gap"].notna().all() and table["lcd"].notna().all()
-    assert sorted(p.name for p in one.iterdir()) == ["mofsift.yaml", "work"]
+    assert sorted(p.name for p in one.iterdir()) == ["export", "mofsift.yaml", "work"]
+
+
+def test_a_real_run_ends_with_a_valid_bundle(tmp_path):
+    import json
+
+    import yaml
+    from typer.testing import CliRunner
+
+    import mofsift.cli as cli
+    from mofsift.export import read_bundle, validate_bundle
+
+    config = tmp_path / "c.yaml"
+    config.write_text(
+        yaml.safe_dump(
+            {
+                "project": "real",
+                "generate": {
+                    "source": "pormake",
+                    "topologies": ["pcu", "dia"],
+                    "nodes": ["N16", "N409"],  # the paddlewheel on dia fails the checks
+                    "edges": ["E14"],
+                },
+                "filter": ["qc_pass == True", "xtb_gap > 1 and xtb_unpaired_electrons == 0"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    res = CliRunner().invoke(cli.app, ["run", str(config), "-q"])
+    assert res.exit_code == 0, res.output
+    assert "filter: 2 row(s): 1 satisfy every filter, 1 do not" in res.output
+    # the rejected row had no xTB calculation: the second filter could not be decided for it
+    assert "xtb_gap > 1 and xtb_unpaired_electrons == 0: 1 true, 0 false, 1 undecided" in res.output
+    bundle = tmp_path / "export" / "real"
+    check = validate_bundle(bundle)
+    assert check.ok and check.notes == [], check.problems
+    manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["counts"] == {"enumerated": 2, "selected": 1, "structures": 1}
+    assert {"pormake", "pyzeo", "tblite", "rdkit"} <= set(manifest["tools"])
+    assert manifest["third_party"][0]["licence"].startswith("CC BY 4.0")
+    row = read_bundle(bundle).table.iloc[0]
+    assert row["name"] == "pcu__N16__E14" and row["xtb_gap"] == pytest.approx(2.86, abs=0.02)
+    assert row["lcd"] == pytest.approx(13.26, abs=0.6) and row["precedent_linker"] > 100
+    # the structure in the bundle is the file the descriptors were computed on
+    work_cif = tmp_path / "work" / "structures" / f"{row.name}.cif"
+    assert sha256_file(bundle / row["cif_path"]) == sha256_file(work_cif)
