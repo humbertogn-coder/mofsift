@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from mofsift.chem import parse_formula
@@ -117,12 +118,13 @@ def aggregate(table: pd.DataFrame, weights: dict[str, float]) -> pd.Series:
     tables. It is missing for a row that lacks any of the weighted components.
     """
     total = float(sum(weights.values()))
-    out = pd.Series(0.0, index=table.index, dtype="Float64")
+    summed = np.zeros(len(table), dtype=float)
     for name, weight in weights.items():
-        column = table[name].astype("Float64")
-        ranks = (-column if name in SMALLER_IS_BETTER else column).rank(pct=True, method="average")
-        out = out + ranks * (weight / total)
-    return out.round(4)
+        # ranked as plain floats: pandas 2 ranks a missing value of a column cast from integers
+        values = pd.Series(table[name].to_numpy(dtype=float, na_value=np.nan))
+        ranks = (-values if name in SMALLER_IS_BETTER else values).rank(pct=True, method="average")
+        summed += ranks.to_numpy() * (weight / total)
+    return pd.Series(pd.array(np.round(summed, 4), dtype="Float64"), index=table.index)
 
 
 def run(

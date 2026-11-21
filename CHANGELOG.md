@@ -90,6 +90,10 @@ All notable changes are listed here. The format follows Keep a Changelog; versio
 - `generate.edges` may be empty.
 
 ### Fixed
+- `score_aggregate` was wrong with pandas 2 when a weighted component that holds whole numbers
+  (`precedent_*`, `linker_size`, `linker_rotatable_bonds`) had a missing value: pandas 2 gave the
+  missing value a rank. The ranks are now computed the same way on pandas 2 and 3; results with
+  pandas 3 are unchanged.
 - `mofsift doctor` left a `runtime.log` file in the current folder when PORMAKE was installed
   (PORMAKE creates it on import). PORMAKE is now imported without that side effect and without
   its console output.
