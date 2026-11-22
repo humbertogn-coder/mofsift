@@ -20,6 +20,7 @@ runtime.log
 # never commit restricted or unpublished material
 POTCAR*
 WAVECAR*
+CHGCAR*
 *.pkl
 .env
 # public datasets used by the scripts; download them, do not commit them

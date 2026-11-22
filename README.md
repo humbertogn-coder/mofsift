@@ -13,9 +13,22 @@ config.yaml -> generate -> qc -> describe -> score -> filter -> export -> viewer
 Most open MOF workflows target gas adsorption. mofsift targets **electronic properties**
 (band gap and related proxies).
 
-> **Status: pre-alpha.** Every stage of the pipeline runs: `generate`, `qc`, `describe`
-> (composition, pore geometry, xTB), `score` (synthetic-accessibility components), `filter` and
-> `export`. The viewer for the exported bundles is the next step (see [Roadmap](#roadmap)).
+**Why it exists.** Screening hypothetical MOFs means chaining several tools: one to assemble
+structures, checks that throw out the broken ones, fast descriptors, some estimate of whether a
+linker is realistic, and a great deal of bookkeeping about what was computed with which version
+and what was skipped. mofsift does the chaining and the bookkeeping. Every candidate keeps a row
+from start to finish, with a status and a reason for each stage, a value that was not computed
+stays empty, and the result is a folder that explains itself. It is meant for choosing what
+deserves a DFT calculation, not for replacing one.
+
+> **Status: pre-alpha, no release yet** (version `0.1.0.dev0`). Every stage of the pipeline runs:
+> `generate`, `qc`, `describe` (composition, pore geometry, xTB), `score` (synthetic-accessibility
+> components), `filter` and `export`. The tests run on Linux with every tool, and on Windows for
+> the parts that need none of the optional tools (PORMAKE, Zeo++, xTB). What is still to be
+> checked before a first release is listed in [docs/releasing.md](docs/releasing.md).
+
+**Start with the [tutorial](docs/tutorial.md)**: nine candidates from config to bundle in about
+two minutes of computing. All the documentation: [docs/](docs/README.md).
 
 ## Read this first
 
@@ -53,7 +66,7 @@ pip install -e ".[all,dev]"      # everything, plus pytest and ruff
 run the geometry and xTB stages under WSL or on a cluster. Conda users: `environment.yml`
 (everything, Linux) and `environment-min.yml` (core only, any OS).
 
-## Quickstart (what works today)
+## Quickstart
 
 ```bash
 mofsift init                  # writes a commented example config: mofsift.yaml
@@ -198,8 +211,9 @@ recorded. Set `enabled: true` together with `on_missing: error` to make a tool m
 | 3 | Describe: composition, pore geometry (pyzeo), xTB (tblite) | done |
 | 4 | Score: linker and precedent components, with a published validation benchmark | done |
 | 5 | Filter and export: table + viewer bundle + manifest; `merge`; `validate` | done |
-| 6 | Viewer support for generic bundles | next |
-| 7 | Docs, tutorial, release preparation | planned |
+| 6 | Viewer for bundles: the Bundles section of [MOF Discovery Studio](https://github.com/humbertogn-coder/MOF_Discovery_Studio) | done |
+| 7 | Tutorial, reference pages, contribution guide, release checklist | done |
+| 8 | First release (0.1.0), after the checks in [docs/releasing.md](docs/releasing.md) | next |
 
 ## Development
 
@@ -211,7 +225,11 @@ ruff check .
 ruff format --check .
 python -m mofsift.config > src/mofsift/schemas/config.schema.json   # after changing the config model
 python -m mofsift.export.schemas src/mofsift/schemas                # after changing a column or the manifest
+python -m mofsift.docgen docs                                       # after either: docs/config.md, docs/columns.md
 ```
+
+How to report a problem, the rules of the code and what a change needs:
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Origin, licence and citation
 

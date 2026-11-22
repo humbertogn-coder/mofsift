@@ -5,6 +5,19 @@ All notable changes are listed here. The format follows Keep a Changelog; versio
 ## [Unreleased]
 
 ### Added
+- Tutorial, `docs/tutorial.md`: a first screening from the config to the bundle, with the real
+  output of every command, a filter with undecided rows, reading a bundle from Python, opening
+  it in MOF Discovery Studio, and the variation that starts from existing CIF files. A test in
+  the external tier runs its commands and compares the outcome with the page.
+- Reference pages generated from the code: `docs/config.md` (every key of the config, with type,
+  limits and default) and `docs/columns.md` (every column, with type, unit and meaning).
+  `python -m mofsift.docgen docs` writes them; a test keeps them in step.
+- `docs/README.md` (index of the documentation), `docs/troubleshooting.md` (common messages and
+  what to do), `docs/releasing.md` (release steps and what is still to be checked before 0.1.0).
+- `CONTRIBUTING.md` and issue forms for GitHub.
+- Tests of the documentation: commands, options and config snippets shown in the pages exist and
+  validate, links resolve, messages quoted in the troubleshooting page are the ones in the code,
+  and the version is the same in the package and in `CITATION.cff`.
 - `filter` step (`mofsift filter`, table `work/05_filter.csv`): the filters of the config are
   evaluated on every row and recorded in `filter_pass` and `filter_rejected_by`. No row is
   removed. A filter whose answer depends on a missing value is undecided: the row does not pass
@@ -81,6 +94,8 @@ All notable changes are listed here. The format follows Keep a Changelog; versio
 - CI: a job that installs PORMAKE and runs the tests marked `external`.
 
 ### Changed
+- Every key of the config has a description (also in `config.schema.json`). `tools.xtb` is
+  described as reserved: this version runs xTB through tblite.
 - Each `.meta.json` also records `stage_config_hash`, the hash of the part of the config its
   stage reads.
 - `linker_smiles` is empty when a metal-free node is joined to an edge (the two form one larger

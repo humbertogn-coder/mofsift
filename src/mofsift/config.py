@@ -158,7 +158,11 @@ class QCConfig(_Model):
 class GeometryConfig(_Model):
     """Pore geometry from Zeo++."""
 
-    enabled: AutoBool = "auto"
+    enabled: AutoBool = Field(
+        "auto",
+        description="auto = run when the tool is installed, otherwise skip and record why; "
+        "true = the stage is wanted (see on_missing); false = never run.",
+    )
     tool: Literal["pyzeo", "zeopp"] = Field(
         "pyzeo", description="'pyzeo' = Python bindings (pip); 'zeopp' = the 'network' binary."
     )
@@ -191,8 +195,12 @@ class GeometryConfig(_Model):
 class XtbConfig(_Model):
     """Semi-empirical electronic proxies (band gap, band edges) from tblite."""
 
-    enabled: AutoBool = "auto"
-    method: Literal["GFN1-xTB", "GFN2-xTB"] = "GFN1-xTB"
+    enabled: AutoBool = Field(
+        "auto",
+        description="auto = run when tblite is installed, otherwise skip and record why; "
+        "true = the stage is wanted (see on_missing); false = never run.",
+    )
+    method: Literal["GFN1-xTB", "GFN2-xTB"] = Field("GFN1-xTB", description="The xTB Hamiltonian.")
     periodic: bool = Field(
         True, description="Keep true for frameworks: a finite cluster is a different system."
     )
@@ -207,10 +215,14 @@ class XtbConfig(_Model):
     timeout_minutes: float | None = Field(
         None, gt=0, description="Stop a structure that takes longer than this and record it as failed."
     )
-    on_missing: Literal["skip", "error"] = "skip"
+    on_missing: Literal["skip", "error"] = Field(
+        "skip", description="What to do when enabled is true and tblite is not installed."
+    )
 
 
 class DescribeConfig(_Model):
+    """Descriptors added to every candidate: composition, pore geometry and xTB proxies."""
+
     only_qc_passed: bool = Field(
         True,
         description="Run pore geometry and xTB only on structures that passed qc. Set to false to run "
@@ -222,7 +234,9 @@ class DescribeConfig(_Model):
 
 
 class StrainConfig(_Model):
-    enabled: bool = False
+    """Linker strain. Reserved: not available in this version."""
+
+    enabled: bool = Field(False, description="Must stay false; the component does not exist yet.")
 
     @field_validator("enabled")
     @classmethod
@@ -235,8 +249,12 @@ class StrainConfig(_Model):
 class AggregateConfig(_Model):
     """Optional rank-based summary of the score components. It is not a probability."""
 
-    enabled: bool = False
-    weights: dict[str, float] = Field(default_factory=dict)
+    enabled: bool = Field(False, description="Write the column score_aggregate.")
+    weights: dict[str, float] = Field(
+        default_factory=dict,
+        description="Positive weight per component, e.g. {linker_sc: 1, precedent_linker: 1}. Only "
+        "listed components count; precedent_node cannot be weighted.",
+    )
 
     @field_validator("weights")
     @classmethod
@@ -260,7 +278,8 @@ class ScoreConfig(_Model):
             "precedent_node",
             "precedent_linker",
             "precedent_pair",
-        ]
+        ],
+        description="The components to compute; each one is a column of the same name.",
     )
     strain: StrainConfig = Field(default_factory=StrainConfig)
     aggregate: AggregateConfig = Field(default_factory=AggregateConfig)
@@ -300,14 +319,16 @@ class ToolsConfig(_Model):
     """Optional explicit paths to external binaries (otherwise they are looked up on PATH)."""
 
     zeopp: Path | None = Field(None, description="Path to the Zeo++ 'network' binary.")
-    xtb: Path | None = Field(None, description="Path to the xtb binary.")
+    xtb: Path | None = Field(
+        None, description="Path to the xtb binary. Reserved: this version runs xTB through tblite."
+    )
 
 
 class Config(_Model):
     """Top-level run configuration."""
 
     project: str = Field(description="Short name of the run; used in file names and the manifest.")
-    seed: int = Field(0, ge=0)
+    seed: int = Field(0, ge=0, description="Seed of everything random (the 3D embedding of SMILES linkers).")
     workdir: Path = Field(Path("work"), description="Folder for intermediate tables and structures.")
     generate: GenerateConfig
     qc: QCConfig = Field(default_factory=QCConfig)

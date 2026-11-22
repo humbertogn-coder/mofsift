@@ -1,0 +1,20 @@
+name: Idea or request
+description: Something mofsift could do, or do better.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What are you trying to do?
+      description: The scientific or practical task, not the solution. An example config or table helps.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help?
+      description: A new config key, column, command or page of the documentation. Leave empty if you are not sure.
+  - type: textarea
+    id: today
+    attributes:
+      label: What do you do today instead?

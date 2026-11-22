@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Troubleshooting
+    url: https://github.com/humbertogn-coder/mofsift/blob/main/docs/troubleshooting.md
+    about: Common messages and what to do about them.
+  - name: Documentation
+    url: https://github.com/humbertogn-coder/mofsift/blob/main/docs/README.md
+    about: Tutorial, guides and reference.

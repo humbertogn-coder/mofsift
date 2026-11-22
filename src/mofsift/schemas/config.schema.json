@@ -6,6 +6,7 @@
       "properties": {
         "enabled": {
           "default": false,
+          "description": "Write the column score_aggregate.",
           "title": "Enabled",
           "type": "boolean"
         },
@@ -13,6 +14,7 @@
           "additionalProperties": {
             "type": "number"
           },
+          "description": "Positive weight per component, e.g. {linker_sc: 1, precedent_linker: 1}. Only listed components count; precedent_node cannot be weighted.",
           "title": "Weights",
           "type": "object"
         }
@@ -22,6 +24,7 @@
     },
     "DescribeConfig": {
       "additionalProperties": false,
+      "description": "Descriptors added to every candidate: composition, pore geometry and xTB proxies.",
       "properties": {
         "composition": {
           "default": true,
@@ -200,6 +203,7 @@
             }
           ],
           "default": "auto",
+          "description": "auto = run when the tool is installed, otherwise skip and record why; true = the stage is wanted (see on_missing); false = never run.",
           "title": "Enabled"
         },
         "fallback": {
@@ -391,6 +395,7 @@
           "$ref": "#/$defs/AggregateConfig"
         },
         "components": {
+          "description": "The components to compute; each one is a column of the same name.",
           "items": {
             "enum": [
               "linker_sa",
@@ -416,9 +421,11 @@
     },
     "StrainConfig": {
       "additionalProperties": false,
+      "description": "Linker strain. Reserved: not available in this version.",
       "properties": {
         "enabled": {
           "default": false,
+          "description": "Must stay false; the component does not exist yet.",
           "title": "Enabled",
           "type": "boolean"
         }
@@ -441,7 +448,7 @@
             }
           ],
           "default": null,
-          "description": "Path to the xtb binary.",
+          "description": "Path to the xtb binary. Reserved: this version runs xTB through tblite.",
           "title": "Xtb"
         },
         "zeopp": {
@@ -484,6 +491,7 @@
             }
           ],
           "default": "auto",
+          "description": "auto = run when tblite is installed, otherwise skip and record why; true = the stage is wanted (see on_missing); false = never run.",
           "title": "Enabled"
         },
         "max_atoms": {
@@ -502,6 +510,7 @@
         },
         "method": {
           "default": "GFN1-xTB",
+          "description": "The xTB Hamiltonian.",
           "enum": [
             "GFN1-xTB",
             "GFN2-xTB"
@@ -511,6 +520,7 @@
         },
         "on_missing": {
           "default": "skip",
+          "description": "What to do when enabled is true and tblite is not installed.",
           "enum": [
             "skip",
             "error"
@@ -588,6 +598,7 @@
     },
     "seed": {
       "default": 0,
+      "description": "Seed of everything random (the 3D embedding of SMILES linkers).",
       "minimum": 0,
       "title": "Seed",
       "type": "integer"

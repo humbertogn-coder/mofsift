@@ -56,6 +56,9 @@ mofsift = "mofsift.cli:app"
 
 [project.urls]
 Repository = "https://github.com/humbertogn-coder/mofsift"
+Documentation = "https://github.com/humbertogn-coder/mofsift/blob/main/docs/README.md"
+Changelog = "https://github.com/humbertogn-coder/mofsift/blob/main/CHANGELOG.md"
+Issues = "https://github.com/humbertogn-coder/mofsift/issues"
 
 [tool.hatch.version]
 path = "src/mofsift/__init__.py"
@@ -64,7 +67,10 @@ path = "src/mofsift/__init__.py"
 packages = ["src/mofsift"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "tests", "docs", "examples", "README.md", "LICENSE", "CHANGELOG.md", "CITATION.cff", "environment*.yml"]
+include = [
+  "src", "tests", "docs", "examples", "scripts",
+  "README.md", "LICENSE", "CHANGELOG.md", "CITATION.cff", "CONTRIBUTING.md", "environment*.yml",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
